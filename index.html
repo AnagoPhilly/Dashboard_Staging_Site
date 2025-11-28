@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CleanDash</title>
+  
+  <link rel="stylesheet" href="style.css" />
+  
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+
+  <div id="userEmail" style="display:none;"></div>
+  <div id="appLoading"><div>Loading CleanDash...</div><div></div></div>
+
+  <div id="loginPage" class="login-container">
+    <div class="login-box">
+      <h1>CleanDash</h1>
+      <input type="email" id="email" placeholder="Email" />
+      <input type="password" id="password" placeholder="Password" />
+      <button onclick="login()">Login</button>
+      <p class="demo-text">
+        Demo: <strong>admin@cleandash.com</strong> / admin123
+      </p>
+    </div>
+  </div>
+
+  <div id="app" class="app-container" style="display:none;">
+    
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <h1>CleanDash</h1>
+        <div id="userEmailDisplay">Loading...</div>
+      </div>
+      <nav class="nav">
+        <div class="nav-item active" data-page="dashboard">Dashboard</div>
+        <div class="nav-item" data-page="accounts">Accounts</div>
+        <div class="nav-item" data-page="metrics">Metrics Graph</div>
+        <div class="nav-item" data-page="pnl">P&L Statement</div>
+        <div class="nav-item" data-page="cfee_calc">CFee Calculator</div> 
+        <div class="nav-item" data-page="ad_generator">Ad Generator</div>
+        <div class="nav-item" data-page="profile">Profile</div>
+        <div class="nav-item logout" onclick="logout()">Logout</div>
+      </nav>
+    </div>
+
+    <div class="main-content">
+      
+      <div id="dashboard" class="page active">
+        <div class="page-container">
+            <div class="content-card">
+                <div class="card-header" style="border-bottom:none; margin-bottom:0; padding-bottom:0;">
+                    <h2>Account Map</h2>
+                    <p>Geographic overview of all active service locations.</p>
+                </div>
+                
+                <div id="dashboardKPIs" class="kpi-scorecard-dashboard">
+                    <p style="text-align:center; color:#888;">Loading KPIs...</p>
+                </div>
+                
+                <div id="map"></div>
+            </div>
+        </div>
+      </div>
+
+      <div id="accounts" class="page">
+        <div class="page-container">
+            <div class="content-card">
+                <div class="card-header">
+                    <div>
+                        <h2>My Accounts</h2>
+                        <p>Manage your client list, revenue, and building specifications.</p>
+                    </div>
+                    <button onclick="showAddAccount()" class="btn btn-primary">+ Add Account</button>
+                </div>
+                <div id="accountsList">
+                    <p style="color:#888; text-align:center;">Loading accounts...</p>
+                </div>
+            </div>
+        </div>
+      </div>
+
+      <div id="metrics" class="page">
+        <div class="page-container">
+            <div class="content-card">
+                <div class="card-header">
+                    <div>
+                        <h2>Performance Metrics</h2>
+                        <p>Analyze revenue trends over time.</p>
+                    </div>
+                    <div>
+                        <button class="btn btn-secondary" onclick="toggleMetricsInput()">Show/Hide Data</button>
+                        <button class="btn btn-secondary" onclick="clearMetrics()">Clear</button>
+                    </div>
+                </div>
+
+                <div id="metricsLayout" class="metrics-layout">
+                    <div id="metricsInputPanel" class="metrics-input-section">
+                        <label class="metrics-label">Paste Statement Data Here:</label>
+                        <p style="font-size:0.8rem; color:#666; margin-bottom:0.5rem;">Copy the table directly from your Excel sheet or Database (Date, Amount, etc.) and paste below.</p>
+                        <textarea id="metricsInput" class="metrics-textarea" placeholder="Paste rows here (e.g. 11/20/25  $7,492.63)..."></textarea>
+                        <button class="btn btn-primary" style="width:100%; margin-top:1rem;" onclick="generateMetricsGraph()">Generate Graph</button>
+                    </div>
+
+                    <div class="metrics-right-panel">
+                        
+                        <div id="metricsStats" class="metrics-stats-row" style="display:none;">
+                            <div class="stat-card">
+                                <span class="stat-label">Total Revenue</span>
+                                <span class="stat-value" id="statTotal">$0</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="stat-label">Highest Month</span>
+                                <span class="stat-value" id="statHigh">$0</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="stat-label">Average Monthly</span>
+                                <span class="stat-value" id="statAvg">$0</span>
+                            </div>
+                        </div>
+
+                        <div class="metrics-chart-wrapper">
+                            <div id="chartFilters" class="chart-filters" style="display:none;">
+                                <button class="filter-btn active" onclick="filterChart('ALL')">All Time</button>
+                                <button class="filter-btn" onclick="filterChart('12M')">Last 12 Months</button>
+                                <button class="filter-btn" onclick="filterChart('YTD')">YTD</button>
+                            </div>
+                            <div style="position: relative; height: 400px; width: 100%;">
+                                <canvas id="performanceChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+      </div>
+
+      <div id="pnl" class="page">
+        <div class="page-container">
+            <div class="content-card">
+                <div class="card-header">
+                    <div>
+                        <h2>Profit & Loss</h2>
+                        <p>Financial statement and forecasting.</p>
+                    </div>
+                    <div class="no-print">
+                        <button class="btn btn-secondary" onclick="window.print()">Print</button>
+                        <button class="btn btn-secondary" onclick="downloadPDF()">Download PDF</button>
+                    </div>
+                </div>
+                
+                <div id="financialScorecard" style="margin-bottom: 2rem;"></div>
+                <div id="revenueChartContainer" class="chart-container" style="display:none; margin-bottom: 2rem;">
+                    <div id="revenueChart" class="revenue-chart"></div>
+                    <div id="chartLegend" class="chart-legend"></div>
+                </div>
+                <div id="accountsContainer"></div>
+                <div id="grandTotal" class="grand-total" style="display:none;">
+                    <h3>Grand Total</h3>
+                    <div class="grand-row"><span>Total Revenue</span><span id="totalAllRevenue">$0</span></div>
+                    <div class="grand-row"><span>Labor Costs</span><span id="totalAllLabor">$0</span></div>
+                    <div class="grand-row"><span>Supplies</span><span id="totalAllSupplies">$0</span></div>
+                    <div class="grand-row"><span>Overhead Expenses</span><span id="totalAllOverhead">$0</span></div>
+                    <div class="grand-row"><span>Cfees (Included)</span><span id="totalAllCfees">$0</span></div>
+                    <div class="grand-row"><span>Cost of Doing Business</span><span id="totalAllCodb">$0</span></div>
+                    <div class="grand-row" style="border-top:1px solid #eee; margin-top:0.5rem; padding-top:0.5rem;"><strong>Total Expenses</strong><span id="totalAllExpenses" style="font-weight:bold;">$0</span></div>
+                    <div class="grand-row grand-profit"><span id="grandNetMonthlyLabel">Net Profit Monthly</span><span id="totalNetMonthly">$0</span></div>
+                    <div class="grand-row grand-profit" style="font-size:1.1rem !important; color:#4b5563 !important;"><span id="grandNetAnnualLabel">Net Profit Annual</span><span id="totalNetAnnual">$0</span></div>
+                </div>
+            </div>
+        </div>
+      </div>
+
+      <div id="cfee_calc" class="page">
+        <div class="page-container">
+            <div class="content-card" id="calcPrintArea">
+                <div class="card-header">
+                    <div>
+                        <h2>C-Fee Calculator</h2>
+                        <p>Estimate quote and financing options.</p>
+                    </div>
+                    <div data-html2canvas-ignore="true">
+                        <button class="btn btn-secondary" onclick="window.print()">Print</button>
+                        <button class="btn btn-primary" onclick="downloadCalcPDF()">Download PDF</button>
+                    </div>
+                </div>
+                
+                <div class="calc-inputs-grid">
+                    <div class="input-wrapper">
+                        <label>Account Name</label>
+                        <input type="text" id="calc_name" placeholder="Client Name" />
+                    </div>
+                    <div class="input-wrapper">
+                        <label>Monthly Revenue ($)</label>
+                        <input type="number" id="calc_revenue" placeholder="10000" oninput="runCfeeCalc()" />
+                    </div>
+                    <div class="input-wrapper">
+                        <label>CFI Factor</label>
+                        <input type="number" id="calc_cfi" step="0.01" placeholder="3.0" oninput="runCfeeCalc()" />
+                    </div>
+                </div>
+            </div>
+
+            <div id="calcResults" class="calc-cards-grid">
+                <div class="result-card green">
+                    <h3>Cash Payment</h3>
+                    <div class="card-amount" id="val_cash_total">$0.00</div>
+                    <div class="card-subtext">Total Due Today</div>
+                    <div class="card-details">
+                        <div class="detail-row">
+                            <span id="lbl_cash_cfee">C-fee Amount</span>
+                            <span id="val_cash_cfee_detail">$0.00</span>
+                        </div>
+                        <div class="detail-row" style="color:#10b981;">
+                            <span>Cash Discount (15%)</span>
+                            <span id="val_cash_disc">($0.00)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="result-card blue">
+                    <h3>120 Days No Interest</h3>
+                    <div class="card-amount" id="val_120_pay">$0.00</div>
+                    <div class="card-subtext">Monthly Payment (4 months)</div>
+                    <div class="card-details">
+                        <div class="detail-row">
+                            <span id="lbl_120_cfee">C-fee Amount</span>
+                            <span id="val_120_cfee">$0.00</span>
+                        </div>
+                        <div class="detail-row total">
+                            <span>Total C-fee Due</span>
+                            <span id="val_120_total_cfee">$0.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="result-card purple">
+                    <div class="card-badge">Most Common</div>
+                    <h3>Financed (12 Months)</h3>
+                    <div class="card-amount" id="val_fin_pay">$0.00</div>
+                    <div class="card-subtext">Monthly Payment (12 months)</div>
+                    <div class="card-details">
+                        <div class="detail-row">
+                            <span id="lbl_fin_cfee">C-fee Amount</span>
+                            <span id="val_fin_cfee">$0.00</span>
+                        </div>
+                        <div class="detail-row">
+                            <span>12% Interest</span>
+                            <span id="val_fin_int">$0.00</span>
+                        </div>
+                        <div class="detail-row total">
+                            <span>Financed Total</span>
+                            <span id="val_fin_total">$0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+      </div>
+
+      <div id="ad_generator" class="page">
+        <div class="page-container">
+            <div class="content-card">
+                <div class="card-header">
+                    <div>
+                        <h2>Employee Ad Generator</h2>
+                        <p>Generate high-converting job posts in seconds.</p>
+                    </div>
+                    <button class="btn btn-secondary" onclick="resetAdForm()">Reset</button>
+                </div>
+
+                <div class="ad-layout-stack">
+                    <div class="marketing-controls" style="background:#f3f4f6; border:1px solid #d1d5db; color:#374151;">
+                        <div style="flex:1; display:flex; align-items:center; gap:10px;">
+                            <label style="font-weight:700;">Job Role:</label>
+                            <select id="ad_role_preset" style="padding:8px; border-radius:6px; border:1px solid #ccc;" onchange="applyJobPreset()">
+                                <option value="general">General Cleaner (Standard)</option>
+                                <option value="floor">Floor Technician (Strip & Wax)</option>
+                                <option value="day">Day Porter (Business Hours)</option>
+                                <option value="lead">Team Lead / Supervisor</option>
+                            </select>
+                        </div>
+                        <label class="toggle-label" style="color:#1f2937;"><input type="checkbox" id="ad_urgent" style="width:auto; margin-right:8px;"> Mark as "Urgent Hiring"</label>
+                        <label class="toggle-label" style="color:#1f2937;"><input type="checkbox" id="ad_spanish_pref" style="width:auto; margin-right:8px;"> Bilingual Preferred</label>
+                    </div>
+
+                    <div class="ad-form-grid">
+                        <div class="ad-section-title">The Logistics</div>
+                        <div class="ad-input-group"><label>Location (City/Neighborhood):</label><input type="text" id="ad_loc" placeholder="e.g. Downtown Austin" /></div>
+                        <div class="ad-input-group"><label>Pay Rate:</label><input type="text" id="ad_pay" placeholder="e.g. $18.00/hr (Weekly Pay)" /></div>
+                        <div class="ad-input-group"><label>Schedule:</label><div class="day-selector" id="daySelector"><button class="day-btn" onclick="toggleDay(this)">Mon</button><button class="day-btn" onclick="toggleDay(this)">Tue</button><button class="day-btn" onclick="toggleDay(this)">Wed</button><button class="day-btn" onclick="toggleDay(this)">Thu</button><button class="day-btn" onclick="toggleDay(this)">Fri</button><button class="day-btn" onclick="toggleDay(this)">Sat</button><button class="day-btn" onclick="toggleDay(this)">Sun</button></div></div>
+                        <div class="ad-input-group"><label>Shift Hours:</label><input type="text" id="ad_hours" placeholder="e.g. 6:00 PM - 10:00 PM" /></div>
+                        <div class="ad-section-title">Why work here?</div>
+                        <div class="ad-input-group" style="grid-column: 1 / -1;"><label>Quick Perks (Click to Add):</label><div class="chip-container" id="perksContainer"><div class="chip" onclick="toggleChip(this)">Weekly Pay</div><div class="chip" onclick="toggleChip(this)">Direct Deposit</div><div class="chip" onclick="toggleChip(this)">Paid Training</div><div class="chip" onclick="toggleChip(this)">Uniforms Provided</div><div class="chip" onclick="toggleChip(this)">No Weekends</div><div class="chip" onclick="toggleChip(this)">Stay Active</div><div class="chip" onclick="toggleChip(this)">Work Alone / Independent</div><div class="chip" onclick="toggleChip(this)">Opportunities for Growth</div></div></div>
+                        <div class="ad-input-group" style="grid-column: 1 / -1;"><label>Additional Offer Details:</label><textarea id="ad_offer_custom" placeholder="Any specific benefits not listed above..." style="min-height:60px;"></textarea></div>
+                        <div class="ad-section-title">Requirements & Contact</div>
+                        <div class="ad-input-group"><label>Must Haves (Click to Add):</label><div class="chip-container" id="reqsContainer"><div class="chip" onclick="toggleChip(this)">Reliable Vehicle</div><div class="chip" onclick="toggleChip(this)">Smartphone</div><div class="chip" onclick="toggleChip(this)">Clean Background</div><div class="chip" onclick="toggleChip(this)">Lift 25+ lbs</div><div class="chip" onclick="toggleChip(this)">Authorized to Work in US</div></div><small style="color:#666; margin-top:5px;">* "18+ Years Old" is automatically included.</small></div>
+                        <div class="ad-input-group"><label>How to Apply:</label><div style="display:flex; gap:10px;"><select id="ad_contact_method" style="flex:1;"><option value="text_call">Text or Call</option><option value="text_only">Text Only (Start with Text)</option><option value="email">Email Resume</option><option value="link">Apply at Link</option></select><input type="text" id="ad_contact" placeholder="(555) 123-4567" style="flex:2;" /></div></div>
+                    </div>
+
+                    <div class="ad-actions-row">
+                        <button class="btn-ad-action" style="background:var(--primary);" onclick="generateAd()">Generate Ad</button>
+                        <button class="btn-ad-action" onclick="copyAdToClipboard()">Copy Text</button>
+                        <button class="btn-ad-action" onclick="printAd()">Print Flyer</button>
+                        <button class="btn-ad-action" onclick="downloadAdPdf()">Download PDF</button>
+                        <button class="btn-ad-action" id="btn_translate" onclick="toggleTranslation()">Translate to Spanish</button>
+                    </div>
+
+                    <textarea id="adOutput" class="ad-output-area" placeholder="Click 'Generate Ad' to build your job post..."></textarea>
+                    <div id="hidden-flyer"></div>
+                </div>
+            </div>
+        </div>
+      </div>
+
+      <div id="profile" class="page">
+        <div class="page-container">
+            <div class="content-card">
+                <div class="card-header">
+                    <h2>My Profile</h2>
+                    <p>Update your personal information and default settings.</p>
+                </div>
+                <div id="profileView" class="profile-view"><div><p>Full Name</p><h3 id="viewName">Loading...</h3></div><div><p>Email</p><h3 id="viewEmail">Loading...</h3></div><div style="grid-column:span 2;"><p>Home Address</p><h3 id="viewAddress">Not set</h3></div><div><p>CFI Factor</p><h3 id="viewCfi">0.00</h3></div><div><p>Cost of Doing Business (%)</p><h3 id="viewCodb">25%</h3></div></div>
+                <div id="profileEdit" style="display:none;"><form class="profile-form" style="display:grid; grid-template-columns:1fr 1fr; gap:2rem;"><div class="input-wrapper"><label>Full Name</label><input type="text" id="editName" /></div><div class="input-wrapper"><label>Email</label><input type="email" id="editEmail" disabled style="background:#f9fafb;" /></div><div class="input-wrapper" style="grid-column:span 2;"><label>Home Address</label><input type="text" id="editAddress" /></div><div class="input-wrapper"><label>CFI Factor</label><input type="number" step="0.01" id="editCfi" /></div><div class="input-wrapper"><label>CoDB (%)</label><input type="number" step="0.1" id="editCodb" /></div></form><div style="margin-top:2rem; display:flex; gap:1rem;"><button class="btn btn-primary" onclick="saveProfile()">Save Changes</button><button class="btn btn-secondary" onclick="cancelEdit()">Cancel</button></div><div id="saveSuccess" style="color:green; margin-top:1rem; display:none;">Saved!</div></div>
+                <div id="editBtnContainer" style="margin-top:2rem;"><button id="editProfileBtn" class="btn btn-secondary">Edit Profile</button></div>
+            </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="addAccountModal" class="modal"><div class="modal-content"><h2>Add New Account</h2><input type="text" id="accountName" placeholder="Account Name" /><input type="text" id="accountAddress" placeholder="Full Address" /><input type="number" id="accountRevenue" placeholder="Monthly Revenue ($)" /><div class="ad-input-group" style="margin-top: 0.5rem;"><label style="font-size:0.85rem;">Start Date</label><input type="date" id="accountStartDate" /></div><div class="modal-buttons"><button onclick="saveNewAccount()">Add Account</button><button onclick="hideAddAccount()" class="cancel">Cancel</button></div></div></div>
+  <div id="editAccountModal" class="modal"><div class="modal-content"><h2>Edit Account</h2><input type="hidden" id="editAccountId" /><input type="text" id="editAccountName" placeholder="Account Name" /><input type="text" id="editAccountAddress" placeholder="Full Address" /><input type="number" id="editAccountRevenue" placeholder="Monthly Revenue ($)" /><div class="ad-input-group" style="margin-top: 0.5rem;"><label style="font-size:0.85rem;">Start Date</label><input type="date" id="editAccountStartDate" /></div><div class="modal-buttons"><button onclick="saveEditedAccount(event)">Save Changes</button><button onclick="hideEditAccount()" class="cancel">Cancel</button></div></div></div>
+  <div id="specsModal" class="modal"><div class="modal-content" style="max-width: 600px;"><h2 id="specsModalTitle">Building Specifications</h2><input type="hidden" id="currentSpecAccountId" /><div class="specs-container"><div><h4 style="margin-bottom:0.5rem; color:#374151;">Current Documents</h4><div id="specsList" class="specs-list-area"><div class="empty-specs">No specifications added yet.</div></div></div><div class="specs-upload-box" style="border-style: solid; background: #f9fafb;"><h4 style="margin-top:0; color:#0d9488;">Add Document Link</h4><p style="font-size:0.85rem; color:#666; margin-bottom:1rem;">To save storage costs, upload your PDF to Google Drive or Dropbox, then paste the share link here.</p><input type="text" id="newSpecName" placeholder="Document Name (e.g. Floorplan)" style="background:white;" /><input type="url" id="newSpecUrl" placeholder="Paste Link (https://...)" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px; margin-bottom:10px;" /><button class="btn btn-primary" onclick="saveSpecLink()" style="width:100%; margin-top:0.5rem;">Save Document Link</button></div></div><div class="modal-buttons" style="margin-top: 1.5rem;"><button onclick="closeSpecsModal()" class="cancel">Close</button></div></div></div>
+
+  <div id="toast"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+  
+  <script src="js/utils.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/accounts.js"></script>
+  <script src="js/pnl.js"></script>
+  <script src="js/calculator.js"></script>
+  <script src="js/profile.js"></script>
+  <script src="js/ad_generator.js"></script>
+  <script src="js/metrics.js"></script>
+  <script src="js/main.js"></script>
+
+</body>
+</html>
