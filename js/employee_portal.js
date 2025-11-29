@@ -34,31 +34,38 @@ auth.onAuthStateChanged(async user => {
 
 async function loadMyShifts(employeeId) {
     const container = document.getElementById('schedulerGrid');
+    const hoursDisplay = document.getElementById('totalHoursDisplay'); // NEW
 
-    const weekEnd = new Date(currentWeekStart);
-    weekEnd.setDate(weekEnd.getDate() + 6);
-    document.getElementById('weekRangeDisplay').textContent =
-        `${currentWeekStart.toLocaleDateString()} - ${weekEnd.toLocaleDateString()}`;
+    // ... (Date Header Logic) ...
 
     try {
-        const snap = await db.collection('jobs')
-            .where('employeeId', '==', employeeId)
-            .get();
+        // ... (Query Logic) ...
 
         const jobs = [];
+        let totalHours = 0; // NEW: Init counter
+
         snap.forEach(doc => {
             const j = doc.data();
             j.id = doc.id;
             j.start = j.startTime.toDate();
             j.end = j.endTime.toDate();
             jobs.push(j);
+
+            // NEW: Calculate Hours if Completed
+            if (j.status === 'Completed' && j.actualStartTime && j.actualEndTime) {
+                const diffMs = j.actualEndTime.toDate() - j.actualStartTime.toDate();
+                const hrs = diffMs / (1000 * 60 * 60);
+                totalHours += hrs;
+            }
         });
+
+        // NEW: Update Display
+        if(hoursDisplay) hoursDisplay.textContent = totalHours.toFixed(2);
 
         renderReadCalendar(jobs);
 
     } catch (e) {
-        console.error(e);
-        container.innerHTML = 'Error loading schedule.';
+        // ... error handling ...
     }
 }
 

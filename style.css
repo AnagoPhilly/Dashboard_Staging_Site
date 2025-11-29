@@ -57,7 +57,17 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
 .login-box button { width:100%; padding:0.85rem; background:var(--primary); color:white; border:none; border-radius:0.5rem; font-weight:bold; cursor:pointer; margin-top:0.5rem; }
 .demo-text { margin-top: 1.5rem; color: #666; font-size: 0.9rem; }
 .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); align-items:center; justify-content:center; z-index:3000; backdrop-filter: blur(2px); }
-.modal-content { background:white; padding:2.5rem; border-radius:1rem; width:90%; max-width:480px; box-shadow:0 20px 40px rgba(0,0,0,0.3); }
+
+/* WIDER MODAL FIX */
+.modal-content {
+    background: white;
+    padding: 2.5rem;
+    border-radius: 1rem;
+    width: 90%;
+    max-width: 600px; /* Widened to fit date pickers */
+    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+}
+
 .modal-content h2 { margin-bottom:1.5rem; text-align:center; color:#1f2937; }
 .modal-content input { width:100%; padding:0.85rem; margin:0.7rem 0; border-radius:0.5rem; border:1px solid #d1d5db; }
 .modal-buttons { display:flex; gap:1rem; margin-top:1.5rem; }
@@ -83,26 +93,17 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
 .page.active { display:block; animation: fadeIn 0.3s ease; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-/* --- MOBILE & TABLET OPTIMIZATION --- */
-@media (max-width: 900px) {
-    .app-container { flex-direction: column; height: auto; overflow: auto; }
-    .sidebar { width: 100%; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; padding: 0.5rem; overflow: visible; }
-    .sidebar-header { padding: 0.5rem 1rem; border: none; }
-    .sidebar-header h1 { font-size: 1.4rem; }
-    .sidebar-header div { display: none; }
-    .nav { display: flex; overflow-x: auto; padding: 0; flex: 1; -webkit-overflow-scrolling: touch; }
-    .nav-item { padding: 0.8rem 1rem; white-space: nowrap; font-size: 0.9rem; }
-    .logout { border: none; padding: 0.8rem; }
-    .main-content { height: auto; padding: 1rem; overflow: visible; }
-    .content-card { padding: 1.5rem; }
-    .calc-inputs-grid, .ad-form-grid, .pnl-grid, .flyer-grid, .flyer-content-grid { grid-template-columns: 1fr !important; gap: 1rem !important; }
-    .card-header { flex-direction: column; align-items: flex-start; gap: 1rem; }
-    .card-header button { width: 100%; }
-}
-
+/* --- LOADER --- */
 #appLoading { position:fixed; inset:0; background:#f9fafb; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:1rem; font-size:1.2rem; color:#666; z-index:9999; }
 #appLoading div { width:50px; height:50px; border:5px solid #e5e7eb; border-top:5px solid #0d9488; border-radius:50%; animation:spin 1s linear infinite; }
-#map { height: 600px; width: 100%; border-radius: 12px; z-index: 1; }
+
+/* --- MAP STYLES (CRITICAL FOR VISIBILITY) --- */
+#map {
+    height: 600px;
+    width: 100%;
+    border-radius: 12px;
+    z-index: 1;
+}
 
 /* --- DASHBOARD KPIS --- */
 .kpi-scorecard-dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }

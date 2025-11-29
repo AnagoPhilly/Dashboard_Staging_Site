@@ -8,7 +8,7 @@ const firebaseConfig = {
   appId: "1:911770919550:web:7f1a839e39d488b2072e2f"
 };
 
-// NEW: Expose config so other scripts can use it for 'Secondary App' creation
+// CRITICAL: Expose config so employees.js can use it for 'Secondary App' creation
 window.firebaseConfig = firebaseConfig;
 
 if (!firebase.apps.length) {
@@ -17,13 +17,13 @@ if (!firebase.apps.length) {
 
 const auth = firebase.auth();
 const db = firebase.firestore();
-// window.storage = firebase.storage(); // Uncomment if needed later
 
+// Expose globals
 window.auth = auth;
 window.db = db;
 window.currentUser = null;
 
-// --- THE TRAFFIC COP ---
+// --- THE TRAFFIC COP (Role-Based Access Control) ---
 auth.onAuthStateChanged(async user => {
   const isEmployeePage = window.location.pathname.includes('employee.html');
   const loginPage = document.getElementById('loginPage');
@@ -34,6 +34,10 @@ auth.onAuthStateChanged(async user => {
     window.currentUser = user;
     console.log("Auth: User detected:", user.email);
 
+    // Elements to update in the Sidebar
+    const nameDisplay = document.getElementById('userNameDisplay');
+    const emailDisplay = document.getElementById('userEmailDisplay');
+
     // 1. Check if they are an EMPLOYEE
     const empSnap = await db.collection('employees').where('email', '==', user.email).get();
 
@@ -41,14 +45,19 @@ auth.onAuthStateChanged(async user => {
         // --- IT IS AN EMPLOYEE ---
         console.log("Auth: User is an Employee.");
 
-        // If they are on the Owner Dashboard, kick them to the Employee Portal
+        // Update Sidebar (if visible)
+        if (nameDisplay && empSnap.docs[0].data().name) {
+            nameDisplay.textContent = `Team Member: ${empSnap.docs[0].data().name.split(' ')[0]}`;
+        }
+        if (emailDisplay) emailDisplay.textContent = user.email;
+
+        // If they are on the Owner Dashboard (index.html), kick them to the Employee Portal
         if (!isEmployeePage) {
             window.location.href = 'employee.html';
             return;
         }
 
-        // If on employee.html, let the page load (handled by employee_portal.js)
-        return;
+        return; // Stop here if employee
     }
 
     // 2. If not an employee, check if they are an OWNER
@@ -57,6 +66,14 @@ auth.onAuthStateChanged(async user => {
     if (ownerDoc.exists && ownerDoc.data().role === 'owner') {
         // --- IT IS AN OWNER ---
         console.log("Auth: User is an Owner.");
+
+        const userData = ownerDoc.data();
+        const name = userData.name || user.email;
+        const firstName = name.split(' ')[0];
+
+        // Update Sidebar Displays
+        if(nameDisplay) nameDisplay.textContent = `Welcome, ${firstName}!`;
+        if(emailDisplay) emailDisplay.textContent = user.email;
 
         // If they are on the Employee Portal, kick them back to Main Dash
         if (isEmployeePage) {
@@ -69,10 +86,6 @@ auth.onAuthStateChanged(async user => {
         if (appLoading) appLoading.style.display = 'none';
         if (app) {
             app.style.display = 'flex';
-            // Update Sidebar Name
-            const emailDisplay = document.getElementById('userEmailDisplay');
-            if(emailDisplay) emailDisplay.textContent = user.email;
-
             // Critical: Load Map if on Dashboard
             if (typeof loadMap === 'function') loadMap();
         }
@@ -100,12 +113,13 @@ auth.onAuthStateChanged(async user => {
   }
 });
 
+// --- LOGIN FUNCTION ---
 window.login = () => {
   const email = document.getElementById('email')?.value.trim();
   const password = document.getElementById('password')?.value;
   if (!email || !password) return alert('Enter email & password');
 
-  // Show loading state while checking
+  // Show loading state on button
   const btn = document.querySelector('button[onclick="login()"]');
   if(btn) btn.textContent = "Verifying...";
 
@@ -115,9 +129,10 @@ window.login = () => {
   });
 };
 
+// --- LOGOUT FUNCTION ---
 window.logout = () => {
   auth.signOut().then(() => {
-    // FORCE RELOAD: Clears memory to prevent data leaks between Owner/Employee
+    // FORCE RELOAD: Clears memory/cache to prevent data leaks between Owner/Employee sessions
     window.location.href = 'index.html';
   });
 };
