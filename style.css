@@ -395,8 +395,9 @@ input:checked + .slider:before { transform: translateX(22px); }
     z-index: 10;
 }
 
+/* UPGRADED SHIFT CARDS with STATUS STYLES */
 .shift-card {
-    background: #f0fdfa; /* Light Teal */
+    background: #f0fdfa; /* Light Teal (Default/Scheduled) */
     border-left: 4px solid var(--primary);
     padding: 8px;
     margin: 8px;
@@ -408,6 +409,39 @@ input:checked + .slider:before { transform: translateX(22px); }
 }
 
 .shift-card:hover { transform: scale(1.02); }
+
+/* Green Style for "Started" (Working Now) */
+.shift-card.active {
+    border-left-color: #10b981; /* Bright Green */
+    background-color: #ecfdf5;
+    box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2);
+}
+
+/* Gray Style for "Completed" (Done) */
+.shift-card.done {
+    border-left-color: #9ca3af; /* Gray */
+    opacity: 0.8;
+}
+
+/* Status Badges inside cards */
+.shift-status {
+    font-size: 0.75rem;
+    font-weight: 700;
+    margin-top: 4px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.shift-status.active {
+    color: #047857;
+    background: #d1fae5;
+}
+
+.shift-status.done {
+    color: #4b5563;
+    background: #e5e7eb;
+}
 
 .shift-time { font-weight: 700; color: var(--text-dark); font-size: 0.8rem; }
 .shift-loc { color: var(--primary); font-weight: 600; margin-top: 2px; }

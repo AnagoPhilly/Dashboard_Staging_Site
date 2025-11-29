@@ -28,7 +28,6 @@ async function loadScheduler() {
             j.id = doc.id;
             j.start = j.startTime.toDate();
             j.end = j.endTime.toDate();
-            // Store actuals if they exist for editing
             j.actStart = j.actualStartTime ? j.actualStartTime.toDate() : null;
             j.actEnd = j.actualEndTime ? j.actualEndTime.toDate() : null;
             jobs.push(j);
@@ -63,20 +62,28 @@ function renderCalendar(jobs) {
         dayJobs.forEach(job => {
             const timeStr = formatTime(job.start) + ' - ' + formatTime(job.end);
 
-            // Status Indicator
-            let statusDot = '';
-            if(job.status === 'Completed') statusDot = '✅';
-            else if(job.status === 'Started') statusDot = '🟢';
+            // --- NEW: VISUAL STATUS LOGIC ---
+            let statusBadge = '';
+            let cardClass = 'shift-card'; // Default
+
+            if(job.status === 'Completed') {
+                statusBadge = '<div class="shift-status done">✅ Done</div>';
+                cardClass += ' done'; // Adds gray style
+            }
+            else if(job.status === 'Started') {
+                statusBadge = '<div class="shift-status active">🟢 Working Now</div>';
+                cardClass += ' active'; // Adds green style
+            }
 
             const card = document.createElement('div');
-            card.className = 'shift-card';
-            // Store full job data in the element for easy edit access
+            card.className = cardClass;
             card.onclick = () => editJob(job);
 
             card.innerHTML = `
-                <div class="shift-time">${statusDot} ${timeStr}</div>
+                <div class="shift-time">${timeStr}</div>
                 <div class="shift-loc">${job.accountName}</div>
                 <div class="shift-emp">👤 ${job.employeeName}</div>
+                ${statusBadge}
             `;
             col.appendChild(card);
         });
@@ -96,9 +103,9 @@ function renderCalendar(jobs) {
 window.openShiftModal = async function(dateObj) {
     document.getElementById('shiftModal').style.display = 'flex';
     document.getElementById('shiftModalTitle').textContent = "Assign Shift";
-    document.getElementById('shiftId').value = ""; // Clear ID = New Mode
+    document.getElementById('shiftId').value = "";
     document.getElementById('btnDeleteShift').style.display = 'none';
-    document.getElementById('manualTimeSection').style.display = 'none'; // Hide manual tools for new shifts
+    document.getElementById('manualTimeSection').style.display = 'none';
 
     const yyyy = dateObj.getFullYear();
     const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
@@ -113,20 +120,18 @@ window.openShiftModal = async function(dateObj) {
 window.editJob = async function(job) {
     document.getElementById('shiftModal').style.display = 'flex';
     document.getElementById('shiftModalTitle').textContent = "Edit Shift";
-    document.getElementById('shiftId').value = job.id; // Set ID = Edit Mode
+    document.getElementById('shiftId').value = job.id;
     document.getElementById('btnDeleteShift').style.display = 'inline-block';
-    document.getElementById('manualTimeSection').style.display = 'block'; // Show manual tools
+    document.getElementById('manualTimeSection').style.display = 'block';
 
     await populateDropdowns();
 
-    // Populate Fields
     document.getElementById('shiftAccount').value = job.accountId;
     document.getElementById('shiftEmployee').value = job.employeeId;
     document.getElementById('shiftStart').value = toIsoString(job.start);
     document.getElementById('shiftEnd').value = toIsoString(job.end);
     document.getElementById('shiftStatus').value = job.status || 'Scheduled';
 
-    // Populate Actuals if they exist
     document.getElementById('actualStart').value = job.actStart ? toIsoString(job.actStart) : '';
     document.getElementById('actualEnd').value = job.actEnd ? toIsoString(job.actEnd) : '';
 };
@@ -138,7 +143,6 @@ window.saveShift = async function() {
     const startVal = document.getElementById('shiftStart').value;
     const endVal = document.getElementById('shiftEnd').value;
 
-    // Manual Overrides
     const status = document.getElementById('shiftStatus').value;
     const actStartVal = document.getElementById('actualStart').value;
     const actEndVal = document.getElementById('actualEnd').value;
@@ -154,10 +158,6 @@ window.saveShift = async function() {
     btn.disabled = true;
     btn.textContent = "Saving...";
 
-    // 1. Conflict Check (Only if changing employee or time, but strictly we check always for safety)
-    // In edit mode, we should ideally exclude the current job from conflict check, but for simplicity we skip check on edits or accept self-clash.
-    // Simpler: Just run check. If it conflicts with ITSELF, that's fine.
-    // For now, let's keep it robust: Run check only on NEW shifts.
     if (!id) {
         const check = await checkScheduleConflict(empSelect.value, startTime, endTime);
         if (check.conflict) {
@@ -173,11 +173,10 @@ window.saveShift = async function() {
         employeeName: empSelect.options[empSelect.selectedIndex].text,
         startTime: firebase.firestore.Timestamp.fromDate(startTime),
         endTime: firebase.firestore.Timestamp.fromDate(endTime),
-        status: status, // Save status
+        status: status,
         owner: window.currentUser.email
     };
 
-    // If manual times entered, save them
     if (actStartVal) data.actualStartTime = firebase.firestore.Timestamp.fromDate(new Date(actStartVal));
     if (actEndVal) data.actualEndTime = firebase.firestore.Timestamp.fromDate(new Date(actEndVal));
 
@@ -187,7 +186,7 @@ window.saveShift = async function() {
             window.showToast("Shift Updated");
         } else {
             data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-            data.status = 'Scheduled'; // Default for new
+            data.status = 'Scheduled';
             await db.collection('jobs').add(data);
             window.showToast("Shift Assigned");
         }
@@ -200,7 +199,6 @@ window.saveShift = async function() {
     }
 };
 
-// Utils
 async function populateDropdowns() {
     const accSelect = document.getElementById('shiftAccount');
     const empSelect = document.getElementById('shiftEmployee');
@@ -244,7 +242,6 @@ window.closeShiftModal = function() { document.getElementById('shiftModal').styl
 function isSameDay(d1, d2) { return d1.toDateString() === d2.toDateString(); }
 function formatTime(date) { return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
 function toIsoString(date) {
-    // Format date object to "YYYY-MM-DDTHH:MM" for input values
     const pad = (num) => String(num).padStart(2, '0');
     return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
