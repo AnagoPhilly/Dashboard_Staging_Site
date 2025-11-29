@@ -63,6 +63,7 @@
             <div class="nav-item" data-page="accounts">Accounts</div>
             <div class="nav-item" data-page="employees">Team Management</div>
             <div class="nav-item" data-page="scheduler">Scheduler</div>
+            <div class="nav-item" data-page="payroll">Payroll Tracking</div>
             <div class="nav-item" data-page="metrics">Metrics Graph</div>
             <div class="nav-item" data-page="pnl">P&L Statement</div>
             <div class="nav-item" data-page="cfee_calc">CFee Calculator</div>
@@ -137,6 +138,45 @@
                         </div>
                     </div>
                     <div id="schedulerGrid" class="scheduler-grid"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="payroll" class="page">
+            <div class="page-container">
+
+                <div class="content-card" style="background: #f0fdfa; border: 1px solid #ccfbf1; margin-bottom: 1.5rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <h2 style="color:#0d9488; margin-bottom:0.5rem;">Total Payroll</h2>
+                            <p style="margin:0; color:#4b5563;">Based on completed shifts in selected range.</p>
+                        </div>
+                        <div style="text-align:right;">
+                            <h1 id="totalPayrollCost" style="font-size:2.5rem; color:#0f766e; margin:0;">$0.00</h1>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="content-card">
+                    <div class="card-header">
+                        <div>
+                            <h2>Payroll Period</h2>
+                            <p>Select dates to calculate hours.</p>
+                        </div>
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <label for="payStart" class="vh">Start Date</label>
+                            <input type="date" id="payStart" class="form-control" style="padding:8px; border-radius:6px; border:1px solid #ddd;" onchange="updatePayrollDates()">
+
+                            <span style="color:#666;">to</span>
+
+                            <label for="payEnd" class="vh">End Date</label>
+                            <input type="date" id="payEnd" class="form-control" style="padding:8px; border-radius:6px; border:1px solid #ddd;" onchange="updatePayrollDates()">
+
+                            <button class="btn btn-secondary" onclick="exportPayrollCSV()">Export CSV</button>
+                        </div>
+                    </div>
+
+                    <div id="payrollTableContainer"></div>
                 </div>
             </div>
         </div>
@@ -616,6 +656,7 @@
 <script src="js/metrics.js"></script>
 <script src="js/employees.js"></script>
 <script src="js/scheduler.js"></script>
+<script src="js/payroll.js"></script>
 <script src="js/main.js"></script>
 
 </body>

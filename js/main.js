@@ -42,19 +42,31 @@ function startApp() {
                 console.error("CleanDash: Target page not found:", item.dataset.page);
             }
     
-            // E. Run page-specific loaders
+            // E. Run page-specific loaders (Check if the function from the relevant JS file exists)
             const page = item.dataset.page;
+
+            // Dashboard (Map)
             if (page === 'dashboard' && typeof window.loadMap === 'function') window.loadMap();
+
+            // Accounts
             if (page === 'accounts' && typeof window.loadAccountsList === 'function') window.loadAccountsList();
 
-            // NEW: Load Employees (Phase 1)
+            // Team Management (Phase 1)
             if (page === 'employees' && typeof window.loadEmployees === 'function') window.loadEmployees();
 
-            // NEW: Load Scheduler (Phase 2)
+            // Scheduler (Phase 2)
             if (page === 'scheduler' && typeof window.loadScheduler === 'function') window.loadScheduler();
 
+            // Payroll Tracking (Phase 5)
+            if (page === 'payroll' && typeof window.loadPayroll === 'function') window.loadPayroll();
+
+            // P&L Statement
             if (page === 'pnl' && typeof window.loadPnL === 'function') window.loadPnL();
+
+            // C-Fee Calculator
             if (page === 'cfee_calc' && typeof window.initCfeeCalc === 'function') window.initCfeeCalc();
+
+            // Profile
             if (page === 'profile' && typeof window.loadProfile === 'function') window.loadProfile();
         });
     });
