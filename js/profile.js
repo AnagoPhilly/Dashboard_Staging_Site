@@ -27,6 +27,10 @@ function loadProfile() {
     setValue('editAddress', data.address || '');
     setValue('editCfi', data.cfi || '');
     setValue('editCodb', data.codb || '');
+
+    // NEW: Populate Alert Threshold (Default to 15 if missing)
+    setValue('editAlertThreshold', data.alertThreshold || 15);
+
   }).catch(error => {
       console.error("CleanDash: Error loading profile:", error);
   });
@@ -47,13 +51,12 @@ function setValue(id, val) {
 function initProfileListeners() {
     console.log("CleanDash: Attaching profile listeners...");
     const editBtn = document.getElementById('editProfileBtn');
-    
+
     if (editBtn) {
         // Remove old listeners to be safe (cloning trick), then re-add
-        // This is a common pattern to ensure event listeners aren't duplicated if this function is called multiple times.
         const newBtn = editBtn.cloneNode(true);
         editBtn.parentNode.replaceChild(newBtn, editBtn);
-        
+
         newBtn.addEventListener('click', () => {
             document.getElementById('profileView').style.display = 'none';
             document.getElementById('profileEdit').style.display = 'block';
@@ -70,28 +73,35 @@ window.cancelEdit = function() {
 
 window.saveProfile = function() {
   if (!window.currentUser) return;
-  
+
   const uid = window.currentUser.uid;
+
+  // Gather data from inputs
   const data = {
     name: document.getElementById('editName').value.trim(),
     address: document.getElementById('editAddress').value.trim(),
     // Parse inputs as numbers
     cfi: parseFloat(document.getElementById('editCfi').value) || 0,
-    codb: parseFloat(document.getElementById('editCodb').value) || 25
+    codb: parseFloat(document.getElementById('editCodb').value) || 25,
+    // NEW: Save Alert Threshold
+    alertThreshold: parseInt(document.getElementById('editAlertThreshold').value) || 15
   };
 
   db.collection('users').doc(uid).set(data, { merge: true }).then(() => {
     document.getElementById('saveSuccess').style.display = 'block';
-    
+
     // Reload the view with new data
     loadProfile();
-    
+
+    // Also refresh map and calculator since they use profile data
+    if (typeof window.loadMap === 'function') window.loadMap();
+    if (typeof window.populateCfi === 'function') window.populateCfi();
+
     setTimeout(() => {
       document.getElementById('saveSuccess').style.display = 'none';
       cancelEdit();
     }, 2000);
   }).catch(error => {
-      // Use alert() here since this is user-triggered error feedback
       alert("Error saving profile: " + error.message);
   });
 };

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>CleanDash</title>
 
     <link rel="stylesheet" href="style.css" />
@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
@@ -18,9 +19,9 @@
         window.dataLayer = window.dataLayer || [];
         function gtag(){dataLayer.push(arguments);}
         gtag('js', new Date());
+
         gtag('config', 'G-HBLVYZSS3M');
     </script>
-
     <style>
         .vh {
             position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
@@ -81,9 +82,11 @@
                         <h2>Account Map</h2>
                         <p>Geographic overview of all active service locations.</p>
                     </div>
+
                     <div id="dashboardKPIs" class="kpi-scorecard-dashboard">
                         <p style="text-align:center; color:#888;">Loading KPIs...</p>
                     </div>
+
                     <div id="map"></div>
                 </div>
             </div>
@@ -162,12 +165,16 @@
                         <div style="display:flex; gap:10px; align-items:center;">
                             <label for="payStart" class="vh">Start Date</label>
                             <input type="date" id="payStart" class="form-control" style="padding:8px; border-radius:6px; border:1px solid #ddd;" onchange="updatePayrollDates()">
+
                             <span style="color:#666;">to</span>
+
                             <label for="payEnd" class="vh">End Date</label>
                             <input type="date" id="payEnd" class="form-control" style="padding:8px; border-radius:6px; border:1px solid #ddd;" onchange="updatePayrollDates()">
+
                             <button class="btn btn-secondary" onclick="exportPayrollCSV()">Export CSV</button>
                         </div>
                     </div>
+
                     <div id="payrollTableContainer"></div>
                 </div>
             </div>
@@ -186,16 +193,31 @@
                             <button class="btn btn-secondary" onclick="clearMetrics()">Clear</button>
                         </div>
                     </div>
+
                     <div id="metricsLayout" class="metrics-layout">
                         <div id="metricsInputPanel" class="metrics-input-section">
                             <label class="metrics-label" for="metricsInput">Paste Statement Data Here:</label>
-                            <p style="font-size:0.8rem; color:#666; margin-bottom:0.5rem;">Copy the table directly from your Excel sheet or Database...</p>
-                            <textarea id="metricsInput" class="metrics-textarea" placeholder="Paste rows here..."></textarea>
+                            <p style="font-size:0.8rem; color:#666; margin-bottom:0.5rem;">Copy the table directly from your Excel sheet or Database (Date, Amount, etc.) and paste below.</p>
+                            <textarea id="metricsInput" class="metrics-textarea" placeholder="Paste rows here (e.g. 11/20/25  $7,492.63)..."></textarea>
                             <button class="btn btn-primary" style="width:100%; margin-top:1rem;" onclick="generateMetricsGraph()">Generate Graph</button>
                         </div>
+
                         <div class="metrics-right-panel">
                             <div id="metricsStats" class="metrics-stats-row" style="display:none;">
+                                <div class="stat-card">
+                                    <span class="stat-label">Total Revenue</span>
+                                    <span class="stat-value" id="statTotal">$0</span>
+                                </div>
+                                <div class="stat-card">
+                                    <span class="stat-label">Highest Month</span>
+                                    <span class="stat-value" id="statHigh">$0</span>
+                                </div>
+                                <div class="stat-card">
+                                    <span class="stat-label">Average Monthly</span>
+                                    <span class="stat-value" id="statAvg">$0</span>
+                                </div>
                             </div>
+
                             <div class="metrics-chart-wrapper">
                                 <div id="chartFilters" class="chart-filters" style="display:none;">
                                     <button class="filter-btn active" onclick="filterChart('ALL')">All Time</button>
@@ -225,6 +247,7 @@
                             <button class="btn btn-secondary" onclick="downloadPDF()">Download PDF</button>
                         </div>
                     </div>
+
                     <div id="financialScorecard" style="margin-bottom: 2rem;"></div>
                     <div id="revenueChartContainer" class="chart-container" style="display:none; margin-bottom: 2rem;">
                         <div id="revenueChart" class="revenue-chart"></div>
@@ -239,7 +262,7 @@
                         <div class="grand-row"><span>Overhead Expenses</span><span id="totalAllOverhead">$0</span></div>
                         <div class="grand-row"><span>Cfees (Included)</span><span id="totalAllCfees">$0</span></div>
                         <div class="grand-row"><span>Cost of Doing Business</span><span id="totalAllCodb">$0</span></div>
-                        <div class="grand-row" style="border-top:1px solid #eee; margin-top:0.5rem;"><strong>Total Expenses</strong><span id="totalAllExpenses" style="font-weight:bold;">$0</span></div>
+                        <div class="grand-row" style="border-top:1px solid #eee; margin-top:0.5rem; padding-top:0.5rem;"><strong>Total Expenses</strong><span id="totalAllExpenses" style="font-weight:bold;">$0</span></div>
                         <div class="grand-row grand-profit"><span id="grandNetMonthlyLabel">Net Profit Monthly</span><span id="totalNetMonthly">$0</span></div>
                         <div class="grand-row grand-profit" style="font-size:1.1rem !important; color:#4b5563 !important;"><span id="grandNetAnnualLabel">Net Profit Annual</span><span id="totalNetAnnual">$0</span></div>
                     </div>
@@ -255,11 +278,12 @@
                             <h2>C-Fee Calculator</h2>
                             <p>Estimate quote and financing options.</p>
                         </div>
-                        <div>
+                        <div data-html2canvas-ignore="true">
                             <button class="btn btn-secondary" onclick="window.print()">Print</button>
                             <button class="btn btn-primary" onclick="downloadCalcPDF()">Download PDF</button>
                         </div>
                     </div>
+
                     <div class="calc-inputs-grid">
                         <div class="input-wrapper">
                             <label for="calc_name">Account Name</label>
@@ -275,34 +299,58 @@
                         </div>
                     </div>
                 </div>
+
                 <div id="calcResults" class="calc-cards-grid">
                     <div class="result-card green">
                         <h3>Cash Payment</h3>
                         <div class="card-amount" id="val_cash_total">$0.00</div>
                         <div class="card-subtext">Total Due Today</div>
                         <div class="card-details">
-                            <div class="detail-row"><span id="lbl_cash_cfee">C-fee Amount</span><span id="val_cash_cfee_detail">$0.00</span></div>
-                            <div class="detail-row" style="color:#10b981;"><span>Cash Discount (15%)</span><span id="val_cash_disc">($0.00)</span></div>
+                            <div class="detail-row">
+                                <span id="lbl_cash_cfee">C-fee Amount</span>
+                                <span id="val_cash_cfee_detail">$0.00</span>
+                            </div>
+                            <div class="detail-row" style="color:#10b981;">
+                                <span>Cash Discount (15%)</span>
+                                <span id="val_cash_disc">($0.00)</span>
+                            </div>
                         </div>
                     </div>
+
                     <div class="result-card blue">
                         <h3>120 Days No Interest</h3>
                         <div class="card-amount" id="val_120_pay">$0.00</div>
                         <div class="card-subtext">Monthly Payment (4 months)</div>
                         <div class="card-details">
-                            <div class="detail-row"><span id="lbl_120_cfee">C-fee Amount</span><span id="val_120_cfee">$0.00</span></div>
-                            <div class="detail-row total"><span>Total C-fee Due</span><span id="val_120_total_cfee">$0.00</span></div>
+                            <div class="detail-row">
+                                <span id="lbl_120_cfee">C-fee Amount</span>
+                                <span id="val_120_cfee">$0.00</span>
+                            </div>
+                            <div class="detail-row total">
+                                <span>Total C-fee Due</span>
+                                <span id="val_120_total_cfee">$0.00</span>
+                            </div>
                         </div>
                     </div>
+
                     <div class="result-card purple">
                         <div class="card-badge">Most Common</div>
                         <h3>Financed (12 Months)</h3>
                         <div class="card-amount" id="val_fin_pay">$0.00</div>
                         <div class="card-subtext">Monthly Payment (12 months)</div>
                         <div class="card-details">
-                            <div class="detail-row"><span id="lbl_fin_cfee">C-fee Amount</span><span id="val_fin_cfee">$0.00</span></div>
-                            <div class="detail-row"><span>12% Interest</span><span id="val_fin_int">$0.00</span></div>
-                            <div class="detail-row total"><span>Financed Total</span><span id="val_fin_total">$0.00</span></div>
+                            <div class="detail-row">
+                                <span id="lbl_fin_cfee">C-fee Amount</span>
+                                <span id="val_fin_cfee">$0.00</span>
+                            </div>
+                            <div class="detail-row">
+                                <span>12% Interest</span>
+                                <span id="val_fin_int">$0.00</span>
+                            </div>
+                            <div class="detail-row total">
+                                <span>Financed Total</span>
+                                <span id="val_fin_total">$0.00</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -319,48 +367,53 @@
                         </div>
                         <button class="btn btn-secondary" onclick="resetAdForm()">Reset</button>
                     </div>
+
                     <div class="ad-layout-stack">
                         <div class="marketing-controls" style="background:#f3f4f6; border:1px solid #d1d5db; color:#374151;">
                             <div style="flex:1; display:flex; align-items:center; gap:10px;">
                                 <label style="font-weight:700;" for="ad_role_preset">Job Role:</label>
                                 <select id="ad_role_preset" style="padding:8px; border-radius:6px; border:1px solid #ccc;" onchange="applyJobPreset()">
-                                    <option value="general">General Cleaner</option>
-                                    <option value="floor">Floor Tech</option>
-                                    <option value="day">Day Porter</option>
-                                    <option value="lead">Lead</option>
+                                    <option value="general">General Cleaner (Standard)</option>
+                                    <option value="floor">Floor Technician (Strip & Wax)</option>
+                                    <option value="day">Day Porter (Business Hours)</option>
+                                    <option value="lead">Team Lead / Supervisor</option>
                                 </select>
                             </div>
-                            <label class="toggle-label" for="ad_urgent" style="color:#1f2937;"><input type="checkbox" id="ad_urgent" style="margin-right:8px;"> Urgent</label>
-                            <label class="toggle-label" for="ad_spanish_pref" style="color:#1f2937;"><input type="checkbox" id="ad_spanish_pref" style="margin-right:8px;"> Bilingual</label>
+                            <label class="toggle-label" for="ad_urgent" style="color:#1f2937;"><input type="checkbox" id="ad_urgent" style="width:auto; margin-right:8px;"> Mark as "Urgent Hiring"</label>
+                            <label class="toggle-label" for="ad_spanish_pref" style="color:#1f2937;"><input type="checkbox" id="ad_spanish_pref" style="width:auto; margin-right:8px;"> Bilingual Preferred</label>
                         </div>
+
                         <div class="ad-form-grid">
-                            <div class="ad-input-group"><label for="ad_loc">Location:</label><input type="text" id="ad_loc" placeholder="Downtown" /></div>
-                            <div class="ad-input-group"><label for="ad_pay">Pay Rate:</label><input type="text" id="ad_pay" placeholder="$18/hr" /></div>
+                            <div class="ad-section-title">The Logistics</div>
+                            <div class="ad-input-group"><label for="ad_loc">Location (City/Neighborhood):</label><input type="text" id="ad_loc" placeholder="e.g. Downtown Austin" /></div>
+                            <div class="ad-input-group"><label for="ad_pay">Pay Rate:</label><input type="text" id="ad_pay" placeholder="e.g. $18.00/hr (Weekly Pay)" /></div>
                             <div class="ad-input-group"><label>Schedule:</label><div class="day-selector" id="daySelector"><button class="day-btn" onclick="toggleDay(this)">Mon</button><button class="day-btn" onclick="toggleDay(this)">Tue</button><button class="day-btn" onclick="toggleDay(this)">Wed</button><button class="day-btn" onclick="toggleDay(this)">Thu</button><button class="day-btn" onclick="toggleDay(this)">Fri</button><button class="day-btn" onclick="toggleDay(this)">Sat</button><button class="day-btn" onclick="toggleDay(this)">Sun</button></div></div>
-                            <div class="ad-input-group"><label for="ad_hours">Shift Hours:</label><input type="text" id="ad_hours" placeholder="6PM - 10PM" /></div>
-
-                            <div class="ad-input-group" style="grid-column: 1/-1;"><label>Perks:</label><div class="chip-container" id="perksContainer"><div class="chip" onclick="toggleChip(this)">Weekly Pay</div><div class="chip" onclick="toggleChip(this)">Direct Deposit</div><div class="chip" onclick="toggleChip(this)">Paid Training</div></div></div>
-                            <div class="ad-input-group" style="grid-column: 1/-1;"><label>Requirements:</label><div class="chip-container" id="reqsContainer"><div class="chip" onclick="toggleChip(this)">Reliable Vehicle</div><div class="chip" onclick="toggleChip(this)">Smartphone</div></div></div>
-
+                            <div class="ad-input-group"><label for="ad_hours">Shift Hours:</label><input type="text" id="ad_hours" placeholder="e.g. 6:00 PM - 10:00 PM" /></div>
+                            <div class="ad-section-title">Why work here?</div>
+                            <div class="ad-input-group" style="grid-column: 1 / -1;"><label>Quick Perks (Click to Add):</label><div class="chip-container" id="perksContainer"><div class="chip" onclick="toggleChip(this)">Weekly Pay</div><div class="chip" onclick="toggleChip(this)">Direct Deposit</div><div class="chip" onclick="toggleChip(this)">Paid Training</div><div class="chip" onclick="toggleChip(this)">Uniforms Provided</div><div class="chip" onclick="toggleChip(this)">No Weekends</div><div class="chip" onclick="toggleChip(this)">Stay Active</div><div class="chip" onclick="toggleChip(this)">Work Alone / Independent</div><div class="chip" onclick="toggleChip(this)">Opportunities for Growth</div></div></div>
+                            <div class="ad-input-group" style="grid-column: 1 / -1;"><label for="ad_offer_custom">Additional Offer Details:</label><textarea id="ad_offer_custom" placeholder="Any specific benefits not listed above..." style="min-height:60px;"></textarea></div>
+                            <div class="ad-section-title">Requirements & Contact</div>
+                            <div class="ad-input-group"><label>Must Haves (Click to Add):</label><div class="chip-container" id="reqsContainer"><div class="chip" onclick="toggleChip(this)">Reliable Vehicle</div><div class="chip" onclick="toggleChip(this)">Smartphone</div><div class="chip" onclick="toggleChip(this)">Clean Background</div><div class="chip" onclick="toggleChip(this)">Lift 25+ lbs</div><div class="chip" onclick="toggleChip(this)">Authorized to Work in US</div></div><small style="color:#666; margin-top:5px;">* "18+ Years Old" is automatically included.</small></div>
                             <div class="ad-input-group">
-                                <label for="ad_contact_method">Apply:</label>
+                                <label for="ad_contact_method">How to Apply:</label>
                                 <div style="display:flex; gap:10px;">
-                                    <select id="ad_contact_method" style="flex:1;"><option value="text_call">Text/Call</option><option value="email">Email</option></select>
-                                    <label for="ad_contact" class="vh">Contact</label>
+                                    <select id="ad_contact_method" style="flex:1;"><option value="text_call">Text or Call</option><option value="text_only">Text Only (Start with Text)</option><option value="email">Email Resume</option><option value="link">Apply at Link</option></select>
+                                    <label for="ad_contact" class="vh">Contact Detail</label>
                                     <input type="text" id="ad_contact" placeholder="(555) 123-4567" style="flex:2;" />
                                 </div>
                             </div>
-                            <div class="ad-input-group"><label for="ad_offer_custom">Notes:</label><textarea id="ad_offer_custom"></textarea></div>
                         </div>
 
                         <div class="ad-actions-row">
-                            <button class="btn-ad-action" style="background:var(--primary);" onclick="generateAd()">Generate</button>
-                            <button class="btn-ad-action" onclick="copyAdToClipboard()">Copy</button>
-                            <button class="btn-ad-action" onclick="printAd()">Print</button>
-                            <button class="btn-ad-action" id="btn_translate" onclick="toggleTranslation()">Español</button>
+                            <button class="btn-ad-action" style="background:var(--primary);" onclick="generateAd()">Generate Ad</button>
+                            <button class="btn-ad-action" onclick="copyAdToClipboard()">Copy Text</button>
+                            <button class="btn-ad-action" onclick="printAd()">Print Flyer</button>
+                            <button class="btn-ad-action" onclick="downloadAdPdf()">Download PDF</button>
+                            <button class="btn-ad-action" id="btn_translate" onclick="toggleTranslation()">Translate to Spanish</button>
                         </div>
-                        <label for="adOutput" class="vh">Output</label>
-                        <textarea id="adOutput" class="ad-output-area"></textarea>
+
+                        <label for="adOutput" class="vh">Ad Output Text</label>
+                        <textarea id="adOutput" class="ad-output-area" placeholder="Click 'Generate Ad' to build your job post..."></textarea>
                         <div id="hidden-flyer"></div>
                     </div>
                 </div>
@@ -372,22 +425,43 @@
                 <div class="content-card">
                     <div class="card-header">
                         <h2>My Profile</h2>
-                        <p>Update your personal information.</p>
+                        <p>Update your personal information and default settings.</p>
                     </div>
-                    <div id="profileView" class="profile-view"><div><p>Full Name</p><h3 id="viewName">Loading...</h3></div><div><p>Email</p><h3 id="viewEmail">Loading...</h3></div><div style="grid-column:span 2;"><p>Home Address</p><h3 id="viewAddress">Not set</h3></div><div><p>CFI Factor</p><h3 id="viewCfi">0.00</h3></div><div><p>Cost of Doing Business</p><h3 id="viewCodb">25%</h3></div></div>
+                    <div id="profileView" class="profile-view"><div><p>Full Name</p><h3 id="viewName">Loading...</h3></div><div><p>Email</p><h3 id="viewEmail">Loading...</h3></div><div style="grid-column:span 2;"><p>Home Address</p><h3 id="viewAddress">Not set</h3></div><div><p>CFI Factor</p><h3 id="viewCfi">0.00</h3></div><div><p>Cost of Doing Business (%)</p><h3 id="viewCodb">25%</h3></div></div>
                     <div id="profileEdit" style="display:none;">
                         <form class="profile-form" style="display:grid; grid-template-columns:1fr 1fr; gap:2rem;">
-                            <div class="input-wrapper"><label for="editName">Name</label><input type="text" id="editName" /></div>
-                            <div class="input-wrapper"><label for="editEmail">Email</label><input type="email" id="editEmail" disabled /></div>
-                            <div class="input-wrapper" style="grid-column:span 2;"><label for="editAddress">Address</label><input type="text" id="editAddress" /></div>
-                            <div class="input-wrapper"><label for="editCfi">CFI</label><input type="number" step="0.01" id="editCfi" /></div>
-                            <div class="input-wrapper"><label for="editCodb">CoDB</label><input type="number" step="0.1" id="editCodb" /></div>
+                            <div class="input-wrapper">
+                                <label for="editName">Full Name</label>
+                                <input type="text" id="editName" />
+                            </div>
+                            <div class="input-wrapper">
+                                <label for="editEmail">Email</label>
+                                <input type="email" id="editEmail" disabled style="background:#f9fafb;" />
+                            </div>
+                            <div class="input-wrapper" style="grid-column:span 2;">
+                                <label for="editAddress">Home Address</label>
+                                <input type="text" id="editAddress" />
+                            </div>
+                            <div class="input-wrapper">
+                                <label for="editCfi">CFI Factor</label>
+                                <input type="number" step="0.01" id="editCfi" />
+                            </div>
+                            <div class="input-wrapper">
+                                <label for="editCodb">CoDB (%)</label>
+                                <input type="number" step="0.1" id="editCodb" />
+                            </div>
+
+                            <div class="input-wrapper" style="grid-column:span 2;">
+                                <label for="editAlertThreshold">Late Alert Threshold (minutes)</label>
+                                <input type="number" id="editAlertThreshold" placeholder="15" />
+                                <small style="color:#6b7280; font-size:0.75rem;">Shifts turn Red if not checked in by this time.</small>
+                            </div>
                         </form>
                         <div style="margin-top:2rem; display:flex; gap:1rem;">
                             <button class="btn btn-primary" onclick="saveProfile()">Save Changes</button>
                             <button class="btn btn-secondary" onclick="cancelEdit()">Cancel</button>
                         </div>
-                        <div id="saveSuccess" style="color:green; display:none;">Saved!</div>
+                        <div id="saveSuccess" style="color:green; margin-top:1rem; display:none;">Saved!</div>
                     </div>
                     <div id="editBtnContainer" style="margin-top:2rem;"><button id="editProfileBtn" class="btn btn-secondary">Edit Profile</button></div>
                 </div>
@@ -399,12 +473,21 @@
 
 <div id="addAccountModal" class="modal">
     <div class="modal-content">
-        <h2>Add Account</h2>
-        <label for="accountName" class="vh">Name</label><input type="text" id="accountName" placeholder="Name" />
-        <label for="accountAddress" class="vh">Address</label><input type="text" id="accountAddress" placeholder="Address" />
-        <label for="accountRevenue" class="vh">Revenue</label><input type="number" id="accountRevenue" placeholder="Revenue" />
-        <div class="ad-input-group" style="margin-top: 0.5rem;"><label style="font-size:0.85rem;" for="accountStartDate">Start Date</label><input type="date" id="accountStartDate" /></div>
-        <div class="modal-buttons"><button onclick="saveNewAccount()">Add</button><button onclick="hideAddAccount()" class="cancel">Cancel</button></div>
+        <h2>Add New Account</h2>
+        <label for="accountName" class="vh">Account Name</label>
+        <input type="text" id="accountName" placeholder="Account Name" />
+        <label for="accountAddress" class="vh">Full Address</label>
+        <input type="text" id="accountAddress" placeholder="Full Address" />
+        <label for="accountRevenue" class="vh">Monthly Revenue ($)</label>
+        <input type="number" id="accountRevenue" placeholder="Monthly Revenue ($)" />
+        <div class="ad-input-group" style="margin-top: 0.5rem;">
+            <label style="font-size:0.85rem;" for="accountStartDate">Start Date</label>
+            <input type="date" id="accountStartDate" />
+        </div>
+        <div class="modal-buttons">
+            <button onclick="saveNewAccount()">Add Account</button>
+            <button onclick="hideAddAccount()" class="cancel">Cancel</button>
+        </div>
     </div>
 </div>
 
@@ -412,11 +495,20 @@
     <div class="modal-content">
         <h2>Edit Account</h2>
         <input type="hidden" id="editAccountId" />
-        <label for="editAccountName" class="vh">Name</label><input type="text" id="editAccountName" />
-        <label for="editAccountAddress" class="vh">Address</label><input type="text" id="editAccountAddress" />
-        <label for="editAccountRevenue" class="vh">Revenue</label><input type="number" id="editAccountRevenue" />
-        <div class="ad-input-group" style="margin-top: 0.5rem;"><label style="font-size:0.85rem;" for="editAccountStartDate">Start Date</label><input type="date" id="editAccountStartDate" /></div>
-        <div class="modal-buttons"><button onclick="saveEditedAccount(event)">Save</button><button onclick="hideEditAccount()" class="cancel">Cancel</button></div>
+        <label for="editAccountName" class="vh">Account Name</label>
+        <input type="text" id="editAccountName" placeholder="Account Name" />
+        <label for="editAccountAddress" class="vh">Full Address</label>
+        <input type="text" id="editAccountAddress" placeholder="Full Address" />
+        <label for="editAccountRevenue" class="vh">Monthly Revenue ($)</label>
+        <input type="number" id="editAccountRevenue" placeholder="Monthly Revenue ($)" />
+        <div class="ad-input-group" style="margin-top: 0.5rem;">
+            <label style="font-size:0.85rem;" for="editAccountStartDate">Start Date</label>
+            <input type="date" id="editAccountStartDate" />
+        </div>
+        <div class="modal-buttons">
+            <button onclick="saveEditedAccount(event)">Save Changes</button>
+            <button onclick="hideEditAccount()" class="cancel">Cancel</button>
+        </div>
     </div>
 </div>
 
@@ -424,23 +516,71 @@
     <div class="modal-content">
         <h2 id="empModalTitle">Add Team Member</h2>
         <input type="hidden" id="empId" />
-        <div class="input-wrapper" style="margin-bottom:10px;"><label style="font-size:0.8rem; font-weight:700;" for="empName">Full Name</label><input type="text" id="empName" /></div>
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
-            <div class="input-wrapper"><label style="font-size:0.8rem; font-weight:700;" for="empRole">Role</label><select id="empRole" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;"><option value="General Cleaner">General Cleaner</option><option value="Floor Tech">Floor Tech</option><option value="Day Porter">Day Porter</option><option value="Lead/Supervisor">Lead</option></select></div>
-            <div class="input-wrapper"><label style="font-size:0.8rem; font-weight:700;" for="empWage">Wage ($)</label><input type="number" id="empWage" /></div>
+
+        <div class="input-wrapper" style="margin-bottom:10px;">
+            <label style="font-size:0.8rem; font-weight:700;" for="empName">Full Name</label>
+            <input type="text" id="empName" placeholder="e.g. John Doe" />
         </div>
-        <div class="input-wrapper" style="margin-bottom:10px;"><label style="font-size:0.8rem; font-weight:700;" for="empAddress">Home Address</label><input type="text" id="empAddress" /></div>
+
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
-            <div class="input-wrapper"><label style="font-size:0.8rem; font-weight:700;" for="empEmail">Email</label><input type="email" id="empEmail" /></div>
-            <div class="input-wrapper"><label style="font-size:0.8rem; font-weight:700;" for="empPhone">Phone</label><input type="text" id="empPhone" /></div>
+            <div class="input-wrapper">
+                <label style="font-size:0.8rem; font-weight:700;" for="empRole">Role</label>
+                <select id="empRole" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                    <option value="General Cleaner">General Cleaner</option>
+                    <option value="Floor Tech">Floor Tech</option>
+                    <option value="Day Porter">Day Porter</option>
+                    <option value="Lead/Supervisor">Lead/Supervisor</option>
+                </select>
+            </div>
+            <div class="input-wrapper">
+                <label style="font-size:0.8rem; font-weight:700;" for="empWage">Hourly Wage ($)</label>
+                <input type="number" id="empWage" placeholder="15.00" step="0.25" />
+            </div>
         </div>
-        <div class="input-wrapper" style="margin-bottom:10px;"><label style="font-size:0.8rem; font-weight:700;" for="empPassword">Password</label><input type="text" id="empPassword" placeholder="e.g. Welcome1!" /><small style="color:#6b7280; font-size:0.75rem;">Min 6 chars</small></div>
-        <div class="input-wrapper" style="margin-bottom:20px;"><label style="font-size:0.8rem; font-weight:700;" for="empStatus">Status</label><select id="empStatus" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;"><option value="Active">Active</option><option value="Inactive">Inactive</option></select></div>
+
+        <div class="input-wrapper" style="margin-bottom:10px;">
+            <label style="font-size:0.8rem; font-weight:700;" for="empAddress">Home Address</label>
+            <input type="text" id="empAddress" placeholder="123 Main St, City, State, Zip" />
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
+            <div class="input-wrapper">
+                <label style="font-size:0.8rem; font-weight:700;" for="empEmail">Email (Login)</label>
+                <input type="email" id="empEmail" placeholder="email@example.com" />
+            </div>
+            <div class="input-wrapper">
+                <label style="font-size:0.8rem; font-weight:700;" for="empPhone">Phone</label>
+                <input type="text" id="empPhone" placeholder="(555) 123-4567" />
+            </div>
+        </div>
+
+        <div class="input-wrapper" style="margin-bottom:10px;">
+            <label style="font-size:0.8rem; font-weight:700;" for="empPassword">Set Initial Password</label>
+            <input type="text" id="empPassword" placeholder="e.g. Welcome2025!" />
+            <small style="color:#6b7280; font-size:0.75rem;">Leave blank if just editing details. Minimum 6 chars.</small>
+        </div>
+
+        <div class="input-wrapper" style="margin-bottom:20px;">
+            <label style="font-size:0.8rem; font-weight:700;" for="empStatus">Status</label>
+            <select id="empStatus" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive (Keeps History)</option>
+            </select>
+        </div>
 
         <div id="resetPasswordContainer" style="margin-bottom:15px; display:none;">
-            <button type="button" onclick="sendResetEmail()" class="btn btn-secondary" style="width:100%; border:1px solid #d1d5db;">📧 Reset Password</button>
+            <button type="button" onclick="sendResetEmail()" class="btn btn-secondary" style="width:100%; border:1px solid #d1d5db; color:#374151;">
+                📧 Send Password Reset Email
+            </button>
+            <small style="color:#666; display:block; margin-top:5px; text-align:center; font-size:0.75rem;">
+                Useful if the employee forgets their login.
+            </small>
         </div>
-        <div class="modal-buttons"><button onclick="saveEmployee()" class="btn btn-primary">Save</button><button onclick="closeEmployeeModal()" class="cancel">Cancel</button></div>
+
+        <div class="modal-buttons">
+            <button onclick="saveEmployee()" class="btn btn-primary">Save Member</button>
+            <button onclick="closeEmployeeModal()" class="cancel">Cancel</button>
+        </div>
     </div>
 </div>
 
@@ -448,24 +588,52 @@
     <div class="modal-content">
         <h2 id="shiftModalTitle">Assign Shift</h2>
         <input type="hidden" id="shiftId" />
-        <div class="input-wrapper" style="margin-bottom:15px;"><label style="font-size:0.8rem; font-weight:700;" for="shiftAccount">Account</label><select id="shiftAccount" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;"></select></div>
-        <div class="input-wrapper" style="margin-bottom:15px;"><label style="font-size:0.8rem; font-weight:700;" for="shiftEmployee">Employee</label><select id="shiftEmployee" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;"></select></div>
+
+        <div class="input-wrapper" style="margin-bottom:15px;">
+            <label style="font-size:0.8rem; font-weight:700;" for="shiftAccount">Account (Location)</label>
+            <select id="shiftAccount" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;"></select>
+        </div>
+
+        <div class="input-wrapper" style="margin-bottom:15px;">
+            <label style="font-size:0.8rem; font-weight:700;" for="shiftEmployee">Employee</label>
+            <select id="shiftEmployee" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;"></select>
+        </div>
+
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:20px;">
-            <div class="input-wrapper"><label style="font-size:0.8rem; font-weight:700;" for="shiftStart">Start</label><input type="datetime-local" id="shiftStart" /></div>
-            <div class="input-wrapper"><label style="font-size:0.8rem; font-weight:700;" for="shiftEnd">End</label><input type="datetime-local" id="shiftEnd" /></div>
+            <div class="input-wrapper">
+                <label style="font-size:0.8rem; font-weight:700;" for="shiftStart">Scheduled Start</label>
+                <input type="datetime-local" id="shiftStart" />
+            </div>
+            <div class="input-wrapper">
+                <label style="font-size:0.8rem; font-weight:700;" for="shiftEnd">Scheduled End</label>
+                <input type="datetime-local" id="shiftEnd" />
+            </div>
         </div>
 
         <div id="manualTimeSection" style="background:#f9fafb; padding:15px; border-radius:8px; border:1px dashed #d1d5db; margin-bottom:20px; display:none;">
             <h4 style="margin-top:0; margin-bottom:10px; font-size:0.9rem; color:#b45309;">⚠️ Manual Time Override</h4>
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                <div class="input-wrapper"><label style="font-size:0.75rem; font-weight:700;" for="actualStart">Actual In</label><input type="datetime-local" id="actualStart" /></div>
-                <div class="input-wrapper"><label style="font-size:0.75rem; font-weight:700;" for="actualEnd">Actual Out</label><input type="datetime-local" id="actualEnd" /></div>
+                <div class="input-wrapper">
+                    <label style="font-size:0.75rem; font-weight:700;" for="actualStart">Actual In</label>
+                    <input type="datetime-local" id="actualStart" />
+                </div>
+                <div class="input-wrapper">
+                    <label style="font-size:0.75rem; font-weight:700;" for="actualEnd">Actual Out</label>
+                    <input type="datetime-local" id="actualEnd" />
+                </div>
             </div>
-            <div class="input-wrapper" style="margin-top:10px;"><label style="font-size:0.75rem; font-weight:700;" for="shiftStatus">Status</label><select id="shiftStatus" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;"><option value="Scheduled">Scheduled</option><option value="Started">Started</option><option value="Completed">Completed</option></select></div>
+            <div class="input-wrapper" style="margin-top:10px;">
+                <label style="font-size:0.75rem; font-weight:700;" for="shiftStatus">Status</label>
+                <select id="shiftStatus" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
+                    <option value="Scheduled">Not Started</option>
+                    <option value="Started">Started</option>
+                    <option value="Completed">Completed</option>
+                </select>
+            </div>
         </div>
 
         <div class="modal-buttons">
-            <button onclick="saveShift()" class="btn btn-primary">Save</button>
+            <button onclick="saveShift()" class="btn btn-primary">Save Shift</button>
             <button onclick="deleteJobFromModal()" id="btnDeleteShift" class="btn btn-danger" style="display:none; background:#ef4444; color:white;">Delete</button>
             <button onclick="closeShiftModal()" class="cancel">Cancel</button>
         </div>
@@ -474,19 +642,26 @@
 
 <div id="specsModal" class="modal">
     <div class="modal-content" style="max-width: 600px;">
-        <h2 id="specsModalTitle">Specs</h2>
+        <h2 id="specsModalTitle">Building Specifications</h2>
         <input type="hidden" id="currentSpecAccountId" />
         <div class="specs-container">
-            <div><h4 style="margin-bottom:0.5rem; color:#374151;">Documents</h4><div id="specsList" class="specs-list-area"><div class="empty-specs">None yet.</div></div></div>
+            <div>
+                <h4 style="margin-bottom:0.5rem; color:#374151;">Current Documents</h4>
+                <div id="specsList" class="specs-list-area"><div class="empty-specs">No specifications added yet.</div></div>
+            </div>
             <div class="specs-upload-box" style="border-style: solid; background: #f9fafb;">
-                <h4 style="margin-top:0; color:#0d9488;">Add Link</h4>
-                <p style="font-size:0.85rem; color:#666; margin-bottom:1rem;">Google Drive / Dropbox Link</p>
-                <label for="newSpecName" class="vh">Name</label><input type="text" id="newSpecName" placeholder="Name" style="background:white;" />
-                <label for="newSpecUrl" class="vh">Link</label><input type="url" id="newSpecUrl" placeholder="https://..." style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px; margin-bottom:10px;" />
-                <button class="btn btn-primary" onclick="saveSpecLink()" style="width:100%; margin-top:0.5rem;">Save Link</button>
+                <h4 style="margin-top:0; color:#0d9488;">Add Document Link</h4>
+                <p style="font-size:0.85rem; color:#666; margin-bottom:1rem;">To save storage costs, upload your PDF to Google Drive or Dropbox, then paste the share link here.</p>
+                <label for="newSpecName" class="vh">Document Name</label>
+                <input type="text" id="newSpecName" placeholder="Document Name (e.g. Floorplan)" style="background:white;" />
+                <label for="newSpecUrl" class="vh">Paste Link (https://...)</label>
+                <input type="url" id="newSpecUrl" placeholder="Paste Link (https://...)" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px; margin-bottom:10px;" />
+                <button class="btn btn-primary" onclick="saveSpecLink()" style="width:100%; margin-top:0.5rem;">Save Document Link</button>
             </div>
         </div>
-        <div class="modal-buttons" style="margin-top: 1.5rem;"><button onclick="closeSpecsModal()" class="cancel">Close</button></div>
+        <div class="modal-buttons" style="margin-top: 1.5rem;">
+            <button onclick="closeSpecsModal()" class="cancel">Close</button>
+        </div>
     </div>
 </div>
 
@@ -511,6 +686,8 @@
 <script src="js/employees.js"></script>
 <script src="js/scheduler.js"></script>
 <script src="js/payroll.js"></script>
+
 <script src="js/main.js"></script>
+
 </body>
 </html>

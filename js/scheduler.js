@@ -16,11 +16,19 @@ async function loadScheduler() {
     document.getElementById('weekRangeDisplay').textContent =
         `${currentWeekStart.toLocaleDateString()} - ${weekEnd.toLocaleDateString()}`;
 
-    const q = window.currentUser.email === 'admin@cleandash.com'
-        ? db.collection('jobs')
-        : db.collection('jobs').where('owner', '==', window.currentUser.email);
+    if (!window.currentUser) return;
 
     try {
+        // 1. Fetch User Settings for Alert Threshold
+        const userDoc = await db.collection('users').doc(window.currentUser.uid).get();
+        const settings = userDoc.exists ? userDoc.data() : {};
+        const alertThreshold = settings.alertThreshold || 15; // Default 15 mins
+
+        // 2. Fetch Jobs
+        const q = window.currentUser.email === 'admin@cleandash.com'
+            ? db.collection('jobs')
+            : db.collection('jobs').where('owner', '==', window.currentUser.email);
+
         const snap = await q.get();
         const jobs = [];
         snap.forEach(doc => {
@@ -33,7 +41,7 @@ async function loadScheduler() {
             jobs.push(j);
         });
 
-        renderCalendar(jobs);
+        renderCalendar(jobs, alertThreshold);
 
     } catch (err) {
         console.error("Error loading jobs:", err);
@@ -41,10 +49,11 @@ async function loadScheduler() {
     }
 }
 
-function renderCalendar(jobs) {
+function renderCalendar(jobs, alertThreshold) {
     const grid = document.getElementById('schedulerGrid');
     grid.innerHTML = '';
 
+    const now = new Date();
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
     for (let i = 0; i < 7; i++) {
@@ -62,17 +71,30 @@ function renderCalendar(jobs) {
         dayJobs.forEach(job => {
             const timeStr = formatTime(job.start) + ' - ' + formatTime(job.end);
 
-            // --- NEW: VISUAL STATUS LOGIC ---
+            // --- VISUAL STATUS LOGIC ---
             let statusBadge = '';
-            let cardClass = 'shift-card'; // Default
+            let cardClass = 'shift-card';
 
             if(job.status === 'Completed') {
+                // Green
                 statusBadge = '<div class="shift-status done">✅ Done</div>';
-                cardClass += ' done'; // Adds gray style
+                cardClass += ' done';
             }
             else if(job.status === 'Started') {
-                statusBadge = '<div class="shift-status active">🟢 Working Now</div>';
-                cardClass += ' active'; // Adds green style
+                // Blue
+                statusBadge = '<div class="shift-status active">🔵 Working Now</div>';
+                cardClass += ' active';
+            }
+            else {
+                // Scheduled (Grey) OR Late (Red)
+                const lateTime = new Date(job.start.getTime() + alertThreshold * 60000);
+
+                if (now > lateTime) {
+                    // Late!
+                    statusBadge = '<div class="shift-status late">⚠️ LATE</div>';
+                    cardClass += ' late';
+                }
+                // Else: Default Grey
             }
 
             const card = document.createElement('div');
@@ -98,8 +120,14 @@ function renderCalendar(jobs) {
     }
 }
 
-// --- EDIT & SAVE LOGIC ---
+// ... (Rest of the file remains the same: openShiftModal, editJob, saveShift, etc.) ...
+// Just ensure 'renderCalendar' call in other functions passes 'alertThreshold' if needed,
+// but 'loadScheduler' handles the main draw. For simplicity in saves, simply reloading scheduler is fine.
 
+// --- COPY HELPER FUNCTIONS FROM PREVIOUS VERSION IF NEEDED ---
+// To be safe, use the full file from previous prompt but REPLACE loadScheduler and renderCalendar with above.
+
+// Full Utils below for completeness
 window.openShiftModal = async function(dateObj) {
     document.getElementById('shiftModal').style.display = 'flex';
     document.getElementById('shiftModalTitle').textContent = "Assign Shift";
