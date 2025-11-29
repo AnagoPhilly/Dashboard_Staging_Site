@@ -25,16 +25,15 @@ async function loadPayroll() {
     try {
         const ownerEmail = window.currentUser.email;
 
-        // 1. Fetch Employees (Active & Inactive - we need to pay people who left too)
+        // 1. Fetch Employees (Active & Inactive)
         const empSnap = await db.collection('employees').where('owner', '==', ownerEmail).get();
         const employees = {};
         empSnap.forEach(doc => {
+            // Initialize every employee with 0 hours
             employees[doc.id] = { ...doc.data(), hours: 0, shifts: 0, totalPay: 0 };
         });
 
         // 2. Fetch Completed Jobs in Date Range
-        // Firestore doesn't allow filtering by date AND owner easily without composite index.
-        // We will fetch by Owner + Status, then filter date client-side for flexibility.
         const jobsSnap = await db.collection('jobs')
             .where('owner', '==', ownerEmail)
             .where('status', '==', 'Completed')
@@ -49,6 +48,8 @@ async function loadPayroll() {
             // Date Filter
             if (jobEnd >= payrollStart && jobEnd <= payrollEnd) {
                 const empId = job.employeeId;
+
+                // Only add if employee still exists in our records
                 if (employees[empId]) {
                     const start = job.actualStartTime.toDate();
                     const end = job.actualEndTime.toDate();
@@ -83,25 +84,33 @@ async function loadPayroll() {
             <tbody>`;
 
         const sortedIds = Object.keys(employees).sort((a,b) => employees[a].name.localeCompare(employees[b].name));
-        let hasData = false;
 
-        sortedIds.forEach(id => {
-            const e = employees[id];
-            if (e.shifts > 0) { // Only show employees with activity
-                hasData = true;
-                html += `<tr>
-                    <td style="font-weight:600;">${e.name} <div style="font-size:0.8rem; color:#6b7280;">${e.role}</div></td>
-                    <td style="text-align:center;">${e.shifts}</td>
-                    <td style="text-align:right;">${e.hours.toFixed(2)} hrs</td>
-                    <td style="text-align:right;">$${e.wage.toFixed(2)}</td>
-                    <td style="text-align:right; font-weight:700; color:#0d9488;">$${e.totalPay.toFixed(2)}</td>
-                </tr>`;
-            }
-        });
-
-        if (!hasData) {
-            html = '<div style="text-align:center; padding:3rem; color:#6b7280;">No completed shifts found in this date range.</div>';
+        if (sortedIds.length === 0) {
+             html = '<div style="text-align:center; padding:3rem; color:#6b7280;">No employees found. Go to Team Management to add staff.</div>';
         } else {
+            sortedIds.forEach(id => {
+                const e = employees[id];
+
+                // Show row if: They have shifts OR they are Active
+                // (Hides inactive employees with 0 pay history for cleaner view)
+                if (e.shifts > 0 || e.status === 'Active') {
+
+                    // Formatting: Dim text if 0 hours
+                    const rowStyle = e.shifts === 0 ? 'color:#6b7280;' : 'font-weight:600; color:#111827;';
+                    const payStyle = e.shifts === 0 ? 'color:#9ca3af;' : 'color:#0d9488; font-weight:700;';
+
+                    html += `<tr style="${rowStyle}">
+                        <td>
+                            <div>${e.name}</div>
+                            <div style="font-size:0.8rem; opacity:0.8;">${e.role}</div>
+                        </td>
+                        <td style="text-align:center;">${e.shifts}</td>
+                        <td style="text-align:right;">${e.hours.toFixed(2)} hrs</td>
+                        <td style="text-align:right;">$${(e.wage || 0).toFixed(2)}</td>
+                        <td style="text-align:right; ${payStyle}">$${e.totalPay.toFixed(2)}</td>
+                    </tr>`;
+                }
+            });
             html += '</tbody></table>';
         }
 
@@ -110,7 +119,7 @@ async function loadPayroll() {
 
     } catch (err) {
         console.error("Error loading payroll:", err);
-        container.innerHTML = '<div style="color:red; text-align:center;">Error loading payroll data.</div>';
+        container.innerHTML = '<div style="color:red; text-align:center;">Error loading payroll data. Check console for details.</div>';
     }
 }
 
@@ -129,7 +138,6 @@ window.updatePayrollDates = function() {
 };
 
 window.exportPayrollCSV = function() {
-    // Basic CSV export logic could go here later
     alert("CSV Export coming in v1.2!");
 };
 
