@@ -28,7 +28,7 @@ function loadProfile() {
     setValue('editCfi', data.cfi || '');
     setValue('editCodb', data.codb || '');
 
-    // NEW: Populate Alert Threshold (Default to 15 if missing)
+    // Alert Threshold (Default to 15 if missing)
     setValue('editAlertThreshold', data.alertThreshold || 15);
 
   }).catch(error => {
@@ -83,8 +83,9 @@ window.saveProfile = function() {
     // Parse inputs as numbers
     cfi: parseFloat(document.getElementById('editCfi').value) || 0,
     codb: parseFloat(document.getElementById('editCodb').value) || 25,
-    // NEW: Save Alert Threshold
-    alertThreshold: parseInt(document.getElementById('editAlertThreshold').value) || 15
+    // Save Alert Threshold
+    alertThreshold: parseInt(document.getElementById('editAlertThreshold').value) || 15,
+    // --- END NEW ---
   };
 
   db.collection('users').doc(uid).set(data, { merge: true }).then(() => {

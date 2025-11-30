@@ -137,15 +137,42 @@
                 <div class="content-card">
                     <div class="card-header">
                         <div>
-                            <h2>Weekly Schedule</h2>
+                            <h2>Schedule</h2>
                             <p id="weekRangeDisplay">Loading dates...</p>
                         </div>
-                        <div style="display:flex; gap:10px;">
-                            <button class="btn btn-secondary" onclick="changeWeek(-1)">← Prev</button>
-                            <button class="btn btn-secondary" onclick="changeWeek(1)">Next →</button>
+
+                        <div class="view-toggles">
+                            <button class="btn-view-toggle" onclick="changeView('day')" data-view="day">Day</button>
+                            <button class="btn-view-toggle active" onclick="changeView('week')" data-view="week">Week</button>
+                            <button class="btn-view-toggle" onclick="changeView('month')" data-view="month">Month</button>
+                        </div>
+
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <button onclick="openShiftModal(new Date())" class="btn btn-primary" style="flex-shrink: 0;">+ Add Shift</button>
+                            <button class="btn btn-secondary" onclick="changePeriod(-1)">← Prev</button>
+                            <button class="btn btn-secondary" onclick="changePeriod(1)">Next →</button>
                         </div>
                     </div>
-                    <div id="schedulerGrid" class="scheduler-grid"></div>
+
+                    <div id="alertControls" class="alert-info-block" style="margin-bottom: 1.5rem; padding: 1rem; border-radius: 8px; display: none; align-items: center; justify-content: space-between;">
+                        <span class="alert-info-label">Email Alert Settings:</span>
+
+                        <div style="display: flex; gap: 15px; align-items:center;">
+                            <label class="toggle-label alert-info-text" for="editEmailEnabled" style="flex-shrink:0; cursor: pointer;">
+                                <input type="checkbox" id="editEmailEnabled" style="width:auto; margin-right:8px;" onchange="saveScheduleSettings()"> Enable Alerts
+                            </label>
+
+                            <div style="flex:1; display: flex; align-items: center; gap: 5px;">
+                                <span class="alert-info-text" style="font-size: 0.9rem; font-weight: 600;">Delay:</span>
+                                <input type="number" id="editEmailDelay" placeholder="60" value="60"
+                                       class="alert-info-input"
+                                       style="width: 60px; padding: 5px; border-radius: 4px;"
+                                       onchange="saveScheduleSettings()" oninput="this.value = this.value.replace(/[^0-9]/g, '');"/>
+                                <small class="alert-info-text" style="font-size:0.75rem;">minutes</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="schedulerGrid" class="scheduler-container"></div>
                 </div>
             </div>
         </div>
@@ -204,7 +231,14 @@
 
                     <div id="metricsLayout" class="metrics-layout">
                         <div id="metricsInputPanel" class="metrics-input-section">
-                            <label class="metrics-label" for="metricsInput">Paste Statement Data Here:</label>
+                            <span class="metrics-label">Data Source:</span>
+                            <button class="btn btn-primary" style="width:100%; margin-bottom:1rem; background:#3b82f6;" onclick="generateMetricsGraphFromDB()">
+                                📊 Load Graph from My Accounts
+                            </button>
+
+                            <div style="text-align:center; margin-bottom:1rem; font-weight:bold; color:#ccc;">— OR —</div>
+
+                            <label class="metrics-label" for="metricsInput">Paste Manual Data:</label>
                             <p style="font-size:0.8rem; color:#666; margin-bottom:0.5rem;">Copy the table directly from your Excel sheet or Database (Date, Amount, etc.) and paste below.</p>
                             <textarea id="metricsInput" class="metrics-textarea" placeholder="Paste rows here (e.g. 11/20/25  $7,492.63)..."></textarea>
                             <button class="btn btn-primary" style="width:100%; margin-top:1rem;" onclick="generateMetricsGraph()">Generate Graph</button>
@@ -373,35 +407,44 @@
                             <h2>Employee Ad Generator</h2>
                             <p>Generate high-converting job posts in seconds.</p>
                         </div>
-                        <button class="btn btn-secondary" onclick="resetAdForm()">Reset</button>
+                        <button onclick="resetAdForm()">Reset</button>
                     </div>
 
                     <div class="ad-layout-stack">
                         <div class="marketing-controls" style="background:#f3f4f6; border:1px solid #d1d5db; color:#374151;">
                             <div style="flex:1; display:flex; align-items:center; gap:10px;">
-                                <label style="font-weight:700;" for="ad_role_preset">Job Role:</label>
-                                <select id="ad_role_preset" style="padding:8px; border-radius:6px; border:1px solid #ccc;" onchange="applyJobPreset()">
+                                <label for="ad_role_preset">Job Role:</label>
+                                <select id="ad_role_preset" onchange="applyJobPreset()">
                                     <option value="general">General Cleaner (Standard)</option>
                                     <option value="floor">Floor Technician (Strip & Wax)</option>
                                     <option value="day">Day Porter (Business Hours)</option>
                                     <option value="lead">Team Lead / Supervisor</option>
                                 </select>
                             </div>
-                            <label class="toggle-label" for="ad_urgent" style="color:#1f2937;"><input type="checkbox" id="ad_urgent" style="width:auto; margin-right:8px;"> Mark as "Urgent Hiring"</label>
-                            <label class="toggle-label" for="ad_spanish_pref" style="color:#1f2937;"><input type="checkbox" id="ad_spanish_pref" style="width:auto; margin-right:8px;"> Bilingual Preferred</label>
+                            <label class="toggle-label" for="ad_urgent"><input type="checkbox" id="ad_urgent"> Mark as "Urgent Hiring"</label>
+                            <label class="toggle-label" for="ad_spanish_pref"><input type="checkbox" id="ad_spanish_pref"> Bilingual Preferred</label>
                         </div>
 
                         <div class="ad-form-grid">
                             <div class="ad-section-title">The Logistics</div>
                             <div class="ad-input-group"><label for="ad_loc">Location (City/Neighborhood):</label><input type="text" id="ad_loc" placeholder="e.g. Downtown Austin" /></div>
                             <div class="ad-input-group"><label for="ad_pay">Pay Rate:</label><input type="text" id="ad_pay" placeholder="e.g. $18.00/hr (Weekly Pay)" /></div>
-                            <div class="ad-input-group"><label>Schedule:</label><div class="day-selector" id="daySelector"><button class="day-btn" onclick="toggleDay(this)">Mon</button><button class="day-btn" onclick="toggleDay(this)">Tue</button><button class="day-btn" onclick="toggleDay(this)">Wed</button><button class="day-btn" onclick="toggleDay(this)">Thu</button><button class="day-btn" onclick="toggleDay(this)">Fri</button><button class="day-btn" onclick="toggleDay(this)">Sat</button><button class="day-btn" onclick="toggleDay(this)">Sun</button></div></div>
+                            <div class="ad-input-group">
+                                <span class="form-label">Schedule:</span>
+                                <div class="day-selector" id="daySelector"><button class="day-btn" onclick="toggleDay(this)">Mon</button><button class="day-btn" onclick="toggleDay(this)">Tue</button><button class="day-btn" onclick="toggleDay(this)">Wed</button><button class="day-btn" onclick="toggleDay(this)">Thu</button><button class="day-btn" onclick="toggleDay(this)">Fri</button><button class="day-btn" onclick="toggleDay(this)">Sat</button><button class="day-btn" onclick="toggleDay(this)">Sun</button></div>
+                            </div>
                             <div class="ad-input-group"><label for="ad_hours">Shift Hours:</label><input type="text" id="ad_hours" placeholder="e.g. 6:00 PM - 10:00 PM" /></div>
                             <div class="ad-section-title">Why work here?</div>
-                            <div class="ad-input-group" style="grid-column: 1 / -1;"><label>Quick Perks (Click to Add):</label><div class="chip-container" id="perksContainer"><div class="chip" onclick="toggleChip(this)">Weekly Pay</div><div class="chip" onclick="toggleChip(this)">Direct Deposit</div><div class="chip" onclick="toggleChip(this)">Paid Training</div><div class="chip" onclick="toggleChip(this)">Uniforms Provided</div><div class="chip" onclick="toggleChip(this)">No Weekends</div><div class="chip" onclick="toggleChip(this)">Stay Active</div><div class="chip" onclick="toggleChip(this)">Work Alone / Independent</div><div class="chip" onclick="toggleChip(this)">Opportunities for Growth</div></div></div>
+                            <div class="ad-input-group" style="grid-column: 1 / -1;">
+                                <span class="form-label">Quick Perks (Click to Add):</span>
+                                <div class="chip-container" id="perksContainer"><div class="chip" onclick="toggleChip(this)">Weekly Pay</div><div class="chip" onclick="toggleChip(this)">Direct Deposit</div><div class="chip" onclick="toggleChip(this)">Paid Training</div><div class="chip" onclick="toggleChip(this)">Uniforms Provided</div><div class="chip" onclick="toggleChip(this)">No Weekends</div><div class="chip" onclick="toggleChip(this)">Stay Active</div><div class="chip" onclick="toggleChip(this)">Work Alone / Independent</div><div class="chip" onclick="toggleChip(this)">Opportunities for Growth</div></div>
+                            </div>
                             <div class="ad-input-group" style="grid-column: 1 / -1;"><label for="ad_offer_custom">Additional Offer Details:</label><textarea id="ad_offer_custom" placeholder="Any specific benefits not listed above..." style="min-height:60px;"></textarea></div>
                             <div class="ad-section-title">Requirements & Contact</div>
-                            <div class="ad-input-group"><label>Must Haves (Click to Add):</label><div class="chip-container" id="reqsContainer"><div class="chip" onclick="toggleChip(this)">Reliable Vehicle</div><div class="chip" onclick="toggleChip(this)">Smartphone</div><div class="chip" onclick="toggleChip(this)">Clean Background</div><div class="chip" onclick="toggleChip(this)">Lift 25+ lbs</div><div class="chip" onclick="toggleChip(this)">Authorized to Work in US</div></div><small style="color:#666; margin-top:5px;">* "18+ Years Old" is automatically included.</small></div>
+                            <div class="ad-input-group">
+                                <span class="form-label">Must Haves (Click to Add):</span>
+                                <div class="chip-container" id="reqsContainer"><div class="chip" onclick="toggleChip(this)">Reliable Vehicle</div><div class="chip" onclick="toggleChip(this)">Smartphone</div><div class="chip" onclick="toggleChip(this)">Clean Background</div><div class="chip" onclick="toggleChip(this)">Lift 25+ lbs</div><div class="chip" onclick="toggleChip(this)">Authorized to Work in US</div></div><small style="color:#666; margin-top:5px;">* "18+ Years Old" is automatically included.</small>
+                            </div>
                             <div class="ad-input-group">
                                 <label for="ad_contact_method">How to Apply:</label>
                                 <div style="display:flex; gap:10px;">
@@ -482,16 +525,58 @@
 <div id="addAccountModal" class="modal">
     <div class="modal-content">
         <h2>Add New Account</h2>
-        <label for="accountName" class="vh">Account Name</label>
-        <input type="text" id="accountName" placeholder="Account Name" />
-        <label for="accountAddress" class="vh">Full Address</label>
-        <input type="text" id="accountAddress" placeholder="Full Address" />
-        <label for="accountRevenue" class="vh">Monthly Revenue ($)</label>
-        <input type="number" id="accountRevenue" placeholder="Monthly Revenue ($)" />
-        <div class="ad-input-group" style="margin-top: 0.5rem;">
-            <label style="font-size:0.85rem;" for="accountStartDate">Start Date</label>
-            <input type="date" id="accountStartDate" />
+
+        <div class="input-wrapper" style="margin-bottom:10px;">
+            <label for="accountName">Account Name (Location)</label>
+            <input type="text" id="accountName" placeholder="e.g. Downtown Office Park" />
         </div>
+
+        <div class="input-wrapper" style="margin-bottom:10px;">
+            <label for="accountAddress">Full Address</label>
+            <input type="text" id="accountAddress" placeholder="123 Main St..." />
+        </div>
+
+        <div class="split-inputs-container">
+            <div class="input-wrapper">
+                <label for="accountRevenue">Monthly Revenue ($)</label>
+                <input type="number" id="accountRevenue" placeholder="0.00" />
+            </div>
+            <div class="input-wrapper">
+                <label for="accountAlarm">Alarm Code</label>
+                <input type="text" id="accountAlarm" placeholder="e.g. 1234#" />
+            </div>
+        </div>
+
+        <div class="split-inputs-container">
+            <div class="input-wrapper">
+                <label for="accountStartDate">Start Date</label>
+                <input type="date" id="accountStartDate" />
+            </div>
+            <div class="input-wrapper">
+                <label for="accountEndDate">End Date (Optional)</label>
+                <input type="date" id="accountEndDate" />
+                <small style="color:#666; font-size:0.7rem;">Leave blank if active</small>
+            </div>
+        </div>
+
+        <div style="border-top:1px dashed #e5e7eb; margin-top:10px; padding-top:10px;">
+            <h4 style="margin:0 0 10px 0; color:#0d9488; font-size:0.9rem;">Client Contact Info</h4>
+            <div class="input-wrapper" style="margin-bottom:10px;">
+                <label for="contactName">Contact Name</label>
+                <input type="text" id="contactName" placeholder="e.g. Jane Smith" />
+            </div>
+            <div class="split-inputs-container">
+                <div class="input-wrapper">
+                    <label for="contactPhone">Phone</label>
+                    <input type="text" id="contactPhone" placeholder="(555) 123-4567" />
+                </div>
+                <div class="input-wrapper">
+                    <label for="contactEmail">Email</label>
+                    <input type="email" id="contactEmail" placeholder="jane@client.com" />
+                </div>
+            </div>
+        </div>
+
         <div class="modal-buttons">
             <button onclick="saveNewAccount()">Add Account</button>
             <button onclick="hideAddAccount()" class="cancel">Cancel</button>
@@ -503,16 +588,57 @@
     <div class="modal-content">
         <h2>Edit Account</h2>
         <input type="hidden" id="editAccountId" />
-        <label for="editAccountName" class="vh">Account Name</label>
-        <input type="text" id="editAccountName" placeholder="Account Name" />
-        <label for="editAccountAddress" class="vh">Full Address</label>
-        <input type="text" id="editAccountAddress" placeholder="Full Address" />
-        <label for="editAccountRevenue" class="vh">Monthly Revenue ($)</label>
-        <input type="number" id="editAccountRevenue" placeholder="Monthly Revenue ($)" />
-        <div class="ad-input-group" style="margin-top: 0.5rem;">
-            <label style="font-size:0.85rem;" for="editAccountStartDate">Start Date</label>
-            <input type="date" id="editAccountStartDate" />
+
+        <div class="input-wrapper" style="margin-bottom:10px;">
+            <label for="editAccountName">Account Name</label>
+            <input type="text" id="editAccountName" />
         </div>
+        <div class="input-wrapper" style="margin-bottom:10px;">
+            <label for="editAccountAddress">Full Address</label>
+            <input type="text" id="editAccountAddress" />
+        </div>
+
+        <div class="split-inputs-container">
+            <div class="input-wrapper">
+                <label for="editAccountRevenue">Monthly Revenue ($)</label>
+                <input type="number" id="editAccountRevenue" />
+            </div>
+            <div class="input-wrapper">
+                <label for="editAccountAlarm">Alarm Code</label>
+                <input type="text" id="editAccountAlarm" />
+            </div>
+        </div>
+
+        <div class="split-inputs-container">
+            <div class="input-wrapper">
+                <label for="editAccountStartDate">Start Date</label>
+                <input type="date" id="editAccountStartDate" />
+            </div>
+            <div class="input-wrapper">
+                <label for="editAccountEndDate">End Date</label>
+                <input type="date" id="editAccountEndDate" />
+                <small style="color:#666; font-size:0.7rem;">Set date to mark Inactive</small>
+            </div>
+        </div>
+
+        <div style="border-top:1px dashed #e5e7eb; margin-top:10px; padding-top:10px;">
+            <h4 style="margin:0 0 10px 0; color:#0d9488; font-size:0.9rem;">Client Contact Info</h4>
+            <div class="input-wrapper" style="margin-bottom:10px;">
+                <label for="editContactName">Contact Name</label>
+                <input type="text" id="editContactName" />
+            </div>
+            <div class="split-inputs-container">
+                <div class="input-wrapper">
+                    <label for="editContactPhone">Phone</label>
+                    <input type="text" id="editContactPhone" />
+                </div>
+                <div class="input-wrapper">
+                    <label for="editContactEmail">Email</label>
+                    <input type="email" id="editContactEmail" />
+                </div>
+            </div>
+        </div>
+
         <div class="modal-buttons">
             <button onclick="saveEditedAccount(event)">Save Changes</button>
             <button onclick="hideEditAccount()" class="cancel">Cancel</button>
@@ -547,37 +673,37 @@
         </div>
 
         <div class="input-wrapper" style="margin-bottom:10px;">
-            <label style="font-size:0.8rem; font-weight:700;" for="empAddress">Home Address</label>
+            <label for="empAddress">Home Address</label>
             <input type="text" id="empAddress" placeholder="123 Main St, City, State, Zip" />
         </div>
 
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
             <div class="input-wrapper">
-                <label style="font-size:0.8rem; font-weight:700;" for="empEmail">Email (Login)</label>
+                <label for="empEmail">Email (Login)</label>
                 <input type="email" id="empEmail" placeholder="email@example.com" />
             </div>
             <div class="input-wrapper">
-                <label style="font-size:0.8rem; font-weight:700;" for="empPhone">Phone</label>
+                <label for="empPhone">Phone</label>
                 <input type="text" id="empPhone" placeholder="(555) 123-4567" />
             </div>
         </div>
 
         <div class="input-wrapper" style="margin-bottom:10px;">
-            <label style="font-size:0.8rem; font-weight:700;" for="empPassword">Set Initial Password</label>
+            <label for="empPassword">Set Initial Password</label>
             <input type="text" id="empPassword" placeholder="e.g. Welcome2025!" />
             <small style="color:#6b7280; font-size:0.75rem;">Leave blank if just editing details. Minimum 6 chars.</small>
         </div>
 
         <div class="input-wrapper" style="margin-bottom:20px;">
-            <label style="font-size:0.8rem; font-weight:700;" for="empStatus">Status</label>
-            <select id="empStatus" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+            <label for="empStatus">Status</label>
+            <select id="empStatus">
                 <option value="Active">Active</option>
                 <option value="Inactive">Inactive (Keeps History)</option>
             </select>
         </div>
 
         <div id="resetPasswordContainer" style="margin-bottom:15px; display:none;">
-            <button type="button" onclick="sendResetEmail()" class="btn btn-secondary" style="width:100%; border:1px solid #d1d5db; color:#374151;">
+            <button type="button" onclick="sendResetEmail()" class="btn btn-secondary">
                 📧 Send Password Reset Email
             </button>
             <small style="color:#666; display:block; margin-top:5px; text-align:center; font-size:0.75rem;">
@@ -598,41 +724,78 @@
         <input type="hidden" id="shiftId" />
 
         <div class="input-wrapper" style="margin-bottom:15px;">
-            <label style="font-size:0.8rem; font-weight:700;" for="shiftAccount">Account (Location)</label>
-            <select id="shiftAccount" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;"></select>
+            <label for="shiftAccount">Account (Location)</label>
+            <select id="shiftAccount"></select>
         </div>
 
         <div class="input-wrapper" style="margin-bottom:15px;">
-            <label style="font-size:0.8rem; font-weight:700;" for="shiftEmployee">Employee</label>
-            <select id="shiftEmployee" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;"></select>
+            <label for="shiftEmployee">Employee</label>
+            <select id="shiftEmployee"></select>
         </div>
 
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:20px;">
+        <div class="split-inputs-container">
             <div class="input-wrapper">
-                <label style="font-size:0.8rem; font-weight:700;" for="shiftStart">Scheduled Start</label>
-                <input type="datetime-local" id="shiftStart" />
+                <label for="shiftStartDate">Start Date</label>
+                <input type="date" id="shiftStartDate" />
             </div>
             <div class="input-wrapper">
-                <label style="font-size:0.8rem; font-weight:700;" for="shiftEnd">Scheduled End</label>
-                <input type="datetime-local" id="shiftEnd" />
+                <label for="shiftStartTime">Start Time</label>
+                <select id="shiftStartTime"></select>
             </div>
         </div>
 
-        <div id="manualTimeSection" style="background:#f9fafb; padding:15px; border-radius:8px; border:1px dashed #d1d5db; margin-bottom:20px; display:none;">
+        <div class="split-inputs-container">
+            <div class="input-wrapper">
+                <label for="shiftEndDate">End Date</label>
+                <input type="date" id="shiftEndDate" />
+            </div>
+            <div class="input-wrapper">
+                <label for="shiftEndTime">End Time</label>
+                <select id="shiftEndTime"></select>
+            </div>
+        </div>
+
+        <div class="input-wrapper" style="margin-top: 15px;">
+            <input type="checkbox" id="shiftRepeat" class="hidden-checkbox" onchange="toggleRecurrenceOptions()">
+            <label for="shiftRepeat" class="btn-repeat-toggle">
+                🔄 Click here to repeat schedule
+            </label>
+        </div>
+
+        <div id="recurrenceOptions" style="display:none; background:#f9fafb; padding:15px; border:1px solid #e5e7eb; border-radius:8px; margin-top:10px;">
+            <div class="input-wrapper">
+                <label style="margin-bottom:8px; display:block;">Select Days:</label>
+                <div class="day-selector" style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button type="button" class="day-btn-circle" data-day="1" onclick="toggleRecurrenceDay(this)">M</button>
+                    <button type="button" class="day-btn-circle" data-day="2" onclick="toggleRecurrenceDay(this)">T</button>
+                    <button type="button" class="day-btn-circle" data-day="3" onclick="toggleRecurrenceDay(this)">W</button>
+                    <button type="button" class="day-btn-circle" data-day="4" onclick="toggleRecurrenceDay(this)">T</button>
+                    <button type="button" class="day-btn-circle" data-day="5" onclick="toggleRecurrenceDay(this)">F</button>
+                    <button type="button" class="day-btn-circle" data-day="6" onclick="toggleRecurrenceDay(this)">S</button>
+                    <button type="button" class="day-btn-circle" data-day="0" onclick="toggleRecurrenceDay(this)">S</button>
+                </div>
+            </div>
+            <div class="input-wrapper" style="margin-top:10px;">
+                <label for="shiftRepeatEnd">Repeat Until Date:</label>
+                <input type="date" id="shiftRepeatEnd" />
+            </div>
+        </div>
+
+        <div id="manualTimeSection" style="background:#f9fafb; padding:15px; border-radius:8px; border:1px dashed #d1d5db; margin-top:20px; margin-bottom:20px; display:none;">
             <h4 style="margin-top:0; margin-bottom:10px; font-size:0.9rem; color:#b45309;">⚠️ Manual Time Override</h4>
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
                 <div class="input-wrapper">
-                    <label style="font-size:0.75rem; font-weight:700;" for="actualStart">Actual In</label>
+                    <label for="actualStart">Actual In</label>
                     <input type="datetime-local" id="actualStart" />
                 </div>
                 <div class="input-wrapper">
-                    <label style="font-size:0.75rem; font-weight:700;" for="actualEnd">Actual Out</label>
+                    <label for="actualEnd">Actual Out</label>
                     <input type="datetime-local" id="actualEnd" />
                 </div>
             </div>
             <div class="input-wrapper" style="margin-top:10px;">
-                <label style="font-size:0.75rem; font-weight:700;" for="shiftStatus">Status</label>
-                <select id="shiftStatus" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
+                <label for="shiftStatus">Status</label>
+                <select id="shiftStatus">
                     <option value="Scheduled">Not Started</option>
                     <option value="Started">Started</option>
                     <option value="Completed">Completed</option>
@@ -640,9 +803,9 @@
             </div>
         </div>
 
-        <div class="modal-buttons">
+        <div class="modal-buttons" style="margin-top: 1.5rem;">
             <button onclick="saveShift()" class="btn btn-primary">Save Shift</button>
-            <button onclick="deleteJobFromModal()" id="btnDeleteShift" class="btn btn-danger" style="display:none; background:#ef4444; color:white;">Delete</button>
+            <button onclick="deleteJobFromModal()" id="btnDeleteShift" class="btn btn-danger" style="display:none;">Delete</button>
             <button onclick="closeShiftModal()" class="cancel">Cancel</button>
         </div>
     </div>
@@ -664,7 +827,7 @@
                 <input type="text" id="newSpecName" placeholder="Document Name (e.g. Floorplan)" style="background:white;" />
                 <label for="newSpecUrl" class="vh">Paste Link (https://...)</label>
                 <input type="url" id="newSpecUrl" placeholder="Paste Link (https://...)" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px; margin-bottom:10px;" />
-                <button class="btn btn-primary" onclick="saveSpecLink()" style="width:100%; margin-top:0.5rem;">Save Document Link</button>
+                <button onclick="saveSpecLink()" style="width:100%; margin-top:0.5rem;">Save Document Link</button>
             </div>
         </div>
         <div class="modal-buttons" style="margin-top: 1.5rem;">
