@@ -61,6 +61,8 @@ auth.onAuthStateChanged(async user => {
     }
 
     // 2. If not an employee, check if they are an OWNER
+    console.log("Auth: Checking Firestore 'users' collection for UID:", user.uid); // <--- DEBUGGING HELP
+    
     const ownerDoc = await db.collection('users').doc(user.uid).get();
 
     if (ownerDoc.exists && ownerDoc.data().role === 'owner') {
@@ -92,7 +94,7 @@ auth.onAuthStateChanged(async user => {
     } else {
         // --- UNKNOWN USER (Security Risk) ---
         console.warn("Auth: User is authenticated but has no role. Signing out.");
-        alert("Access Denied: Account not authorized.");
+        alert(`Access Denied: Account not authorized.\n\nMissing Firestore Document for UID: ${user.uid}`);
         auth.signOut();
     }
 
