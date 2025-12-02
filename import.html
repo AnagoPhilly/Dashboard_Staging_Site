@@ -10,7 +10,6 @@
 
         .upload-box { border: 2px dashed #cbd5e1; border-radius: 8px; padding: 30px; text-align: center; background: #f8fafc; transition: all 0.2s; margin: 20px 0; }
 
-        /* Updated Button Styles */
         button { background: #0d9488; color: white; border: none; padding: 12px 24px; font-size: 1rem; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; transition: background 0.2s; }
         button:hover { background: #0f766e; }
         button.disabled-state { background: #9ca3af !important; cursor: not-allowed !important; opacity: 0.7; }
@@ -22,6 +21,7 @@
 
         .log-window { background: #1f2937; color: #10b981; padding: 15px; height: 200px; overflow-y: auto; border-radius: 8px; margin-top: 20px; font-family: monospace; font-size: 0.85rem; display: none; }
         .log-entry { margin-bottom: 4px; border-bottom: 1px solid #374151; padding-bottom: 2px; }
+        .log-error { color: #ef4444; font-weight: bold; }
 
         .badge { display: inline-block; background: #e0f2fe; color: #0369a1; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; margin-bottom: 10px; }
 
@@ -65,7 +65,6 @@
 <script src="js/auth.js"></script>
 
 <script>
-    // --- SECURITY CHECK ---
     const ALLOWED_ADMIN_EMAIL = 'nate@anagophilly.com';
 
     firebase.auth().onAuthStateChanged(user => {
@@ -74,29 +73,25 @@
         const btn = document.getElementById('btnUpload');
 
         if (user && user.email && user.email.toLowerCase() === ALLOWED_ADMIN_EMAIL.toLowerCase()) {
-            // User is authorized
             warningBox.style.display = 'none';
             appContent.style.opacity = '1';
             appContent.style.pointerEvents = 'auto';
             btn.disabled = false;
             btn.classList.remove('disabled-state');
-            console.log("Admin authorized.");
         } else {
-            // User is NOT authorized
             warningBox.style.display = 'block';
             appContent.style.opacity = '0.5';
             appContent.style.pointerEvents = 'none';
             btn.disabled = true;
             btn.classList.add('disabled-state');
-            if(user) console.warn(`Blocked unauthorized access attempt by: ${user.email}`);
         }
     });
-    // ---------------------------
 
-    function log(msg) {
+    function log(msg, isError = false) {
         const l = document.getElementById('log');
         l.style.display = 'block';
-        l.innerHTML += `<div class="log-entry">> ${msg}</div>`;
+        const className = isError ? 'log-entry log-error' : 'log-entry';
+        l.innerHTML += `<div class="${className}">> ${msg}</div>`;
         l.scrollTop = l.scrollHeight;
     }
 
@@ -115,7 +110,12 @@
             header: true,
             skipEmptyLines: true,
             complete: function(results) {
-                if (results.data.length === 0) return alert("File appears empty.");
+                if (results.data.length === 0) {
+                    btn.disabled = false;
+                    btn.classList.remove('disabled-state');
+                    btn.innerText = "🚀 Start Import";
+                    return alert("File appears empty.");
+                }
                 uploadToFirebase(results.data);
             },
             error: function(err) {
@@ -129,65 +129,84 @@
 
     async function uploadToFirebase(data) {
         document.getElementById('status').innerText = `Analyzing ${data.length} rows...`;
-        const batchSize = 400;
-        let batch = db.batch();
-        let count = 0;
-        let totalProcessed = 0;
-        let batchCount = 0;
+        log(`Starting upload for ${data.length} rows...`);
 
-        for (const row of data) {
-            const pid = row['Client ID'];
-            if (!pid) continue;
-            let cleanRev = row['Recur Amt'] ? parseFloat(row['Recur Amt'].replace(/[$,]/g, '')) : 0;
-            let cleanDate = '';
-            if(row['Start Date']) {
-                const parts = row['Start Date'].split('-');
-                if(parts.length === 3) cleanDate = `20${parts[2]}-${parts[0]}-${parts[1]}`;
+        try {
+            const batchSize = 400;
+            let batch = db.batch();
+            let count = 0;
+            let totalProcessed = 0;
+            let batchCount = 0;
+
+            for (const row of data) {
+                const pid = row['Client ID'];
+                if (!pid) continue;
+
+                let cleanRev = row['Recur Amt'] ? parseFloat(row['Recur Amt'].replace(/[$,]/g, '')) : 0;
+                let cleanDate = '';
+                if(row['Start Date']) {
+                    const parts = row['Start Date'].split('-');
+                    if(parts.length === 3) cleanDate = `20${parts[2]}-${parts[0]}-${parts[1]}`;
+                }
+
+                const docRef = db.collection('master_client_list').doc(String(pid).trim());
+                const updateData = {
+                    pid: pid,
+                    name: row['Service Location Name'] || '',
+                    address: `${row['Site Address'] || ''}, ${row['Site City'] || ''}, ${row['Site State'] || ''} ${row['Site Zip'] || ''}`.trim(),
+                    revenue: cleanRev,
+                    startDate: cleanDate,
+                    contactName: row['Contact Name'] || '',
+                    contactPhone: row['Contact Phone'] || '',
+                    contactEmail: row['Contact Email'] || '',
+                    lastImportedAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+
+                batch.set(docRef, updateData, { merge: true });
+                count++;
+                totalProcessed++;
+
+                if (count >= batchSize) {
+                    log(`Committing Batch ${batchCount + 1}...`);
+                    await batch.commit();
+                    batchCount++;
+                    log(`Batch ${batchCount} Success!`);
+                    batch = db.batch();
+                    count = 0;
+                }
             }
 
-            const docRef = db.collection('master_client_list').doc(String(pid).trim());
-            const updateData = {
-                pid: pid,
-                name: row['Service Location Name'] || '',
-                address: `${row['Site Address'] || ''}, ${row['Site City'] || ''}, ${row['Site State'] || ''} ${row['Site Zip'] || ''}`.trim(),
-                revenue: cleanRev,
-                startDate: cleanDate,
-                contactName: row['Contact Name'] || '',
-                contactPhone: row['Contact Phone'] || '',
-                contactEmail: row['Contact Email'] || '',
-                lastImportedAt: firebase.firestore.FieldValue.serverTimestamp()
-            };
-
-            batch.set(docRef, updateData, { merge: true });
-            count++; totalProcessed++;
-
-            if (count >= batchSize) {
+            if (count > 0) {
+                log(`Committing Final Batch (${count} records)...`);
                 await batch.commit();
-                batchCount++;
-                log(`Batch ${batchCount}: Synced ${count} records...`);
-                batch = db.batch(); count = 0;
+                log(`Final Batch Success!`);
             }
+
+            document.getElementById('status').innerText = `✅ Success! Synced ${totalProcessed} clients.`;
+            document.getElementById('btnUpload').innerText = "Import Complete";
+            document.getElementById('btnUpload').style.background = "#10b981";
+            document.getElementById('btnUpload').classList.remove('disabled-state');
+            alert(`Complete! ${totalProcessed} clients have been updated.`);
+
+        } catch (error) {
+            console.error("Upload Error:", error);
+            log(`CRITICAL ERROR: ${error.message}`, true);
+            log("Upload stopped. Check database permissions.", true);
+
+            document.getElementById('status').innerText = "❌ Error occurred.";
+            const btn = document.getElementById('btnUpload');
+            btn.disabled = false;
+            btn.classList.remove('disabled-state');
+            btn.innerText = "Try Again";
+
+            alert("Error during upload. See log for details.");
         }
-
-        if (count > 0) { await batch.commit(); log(`Final Batch: Synced ${count} records.`); }
-
-        document.getElementById('status').innerText = `✅ Success! Synced ${totalProcessed} clients.`;
-        document.getElementById('btnUpload').innerText = "Import Complete";
-        document.getElementById('btnUpload').style.background = "#10b981";
-        document.getElementById('btnUpload').classList.remove('disabled-state');
-        alert(`Complete! ${totalProcessed} clients have been updated in the Master List.`);
     }
 
-    // --- DANGER ZONE LOGIC ---
     async function wipeMasterList() {
-        // Safety Check 1
         if(!confirm("⚠️ DANGER: This will delete ALL data in the Master Client List.\n\nThis cannot be undone. Are you sure?")) return;
-
-        // Safety Check 2
         const confirmation = prompt("To confirm deletion, type the word DELETE below:");
-        if (confirmation !== "DELETE") {
-            return alert("Deletion cancelled. You did not type DELETE.");
-        }
+        if (confirmation !== "DELETE") return alert("Deletion cancelled.");
 
         document.getElementById('status').innerText = "DELETING ALL DATA...";
         log("STARTED DELETION SEQUENCE...");
@@ -196,35 +215,24 @@
             const collectionRef = db.collection('master_client_list');
             const batchSize = 400;
 
-            // Recursive function to delete in batches
             async function deleteBatch() {
                 const snapshot = await collectionRef.limit(batchSize).get();
-
                 if (snapshot.size === 0) {
                     document.getElementById('status').innerText = "✅ Database is Empty.";
-                    log("Deletion Complete. Master List is empty.");
+                    log("Deletion Complete.");
                     alert("All master data has been deleted.");
                     return;
                 }
-
                 const batch = db.batch();
-                snapshot.docs.forEach((doc) => {
-                    batch.delete(doc.ref);
-                });
-
+                snapshot.docs.forEach((doc) => batch.delete(doc.ref));
                 await batch.commit();
                 log(`Deleted batch of ${snapshot.size} records...`);
-
-                // Recurse
                 await deleteBatch();
             }
-
             await deleteBatch();
-
         } catch (e) {
             console.error(e);
-            alert("Error deleting data: " + e.message);
-            log("Error: " + e.message);
+            log(`Delete Error: ${e.message}`, true);
         }
     }
 </script>
