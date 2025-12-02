@@ -62,7 +62,7 @@ function loadPnL() {
       const panel = document.createElement('div');
       panel.className = 'panel';
       
-      // Build the account details panel
+      // Build the account details panel with specific toggle
       panel.innerHTML = `
         <div class="pnl-grid">
           <div class="pnl-box">
@@ -98,15 +98,13 @@ function loadPnL() {
               <span class="label">Cfees (Monthly Calc)</span>
               <span class="value" id="cfees-${data.id}">$0</span>
             </div>
-            
-            <div class="pnl-row" style="justify-content: space-between; align-items: center; background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 6px; padding: 0.6rem 0.8rem; margin-top: 0.8rem;">
-                <label style="font-size:0.8rem; color:#3730a3; font-weight:700; cursor:pointer;" for="cfee-toggle-${data.id}">Include Cfees in Calculation</label>
-                <label class="switch" style="transform:scale(0.9); margin:0;">
+            <div class="pnl-row" style="justify-content: flex-end; padding-top: 8px; border:none;">
+                <label style="font-size:0.75rem; margin-right:10px; color:#6b7280; font-weight:600;">INCLUDE IN P&L?</label>
+                <label class="switch" style="transform:scale(0.8); margin:0;">
                     <input type="checkbox" id="cfee-toggle-${data.id}" onchange="calculateAll()">
                     <span class="slider"></span>
                 </label>
             </div>
-
           </div>
           <div class="pnl-box">
             <h4>Cost of Doing Business</h4>
