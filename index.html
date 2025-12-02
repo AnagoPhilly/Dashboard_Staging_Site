@@ -12,14 +12,12 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
     <script type="text/javascript">
         (function(){
-           // PUBLIC KEY INSERTED HERE
            emailjs.init("dIbzeCVC1Eg37asrY");
         })();
     </script>
@@ -29,7 +27,6 @@
         window.dataLayer = window.dataLayer || [];
         function gtag(){dataLayer.push(arguments);}
         gtag('js', new Date());
-
         gtag('config', 'G-HBLVYZSS3M');
     </script>
     <style>
@@ -47,10 +44,8 @@
 <div id="loginPage" class="login-container">
     <div class="login-box">
         <h1>CleanDash</h1>
-        <label for="email" class="vh">Email</label>
-        <input type="email" id="email" placeholder="Email" />
-        <label for="password" class="vh">Password</label>
-        <input type="password" id="password" placeholder="Password" />
+        <input type="email" id="email" placeholder="Email" aria-label="Email Address" />
+        <input type="password" id="password" placeholder="Password" aria-label="Password" />
         <button onclick="login()">Login</button>
 
         <p style="margin-top: 1.5rem; font-size: 0.85rem; color: #6b7280; line-height: 1.4;">
@@ -79,6 +74,11 @@
             <div class="nav-item" data-page="cfee_calc">CFee Calculator</div>
             <div class="nav-item" data-page="ad_generator">Ad Generator</div>
             <div class="nav-item" data-page="profile">Profile</div>
+
+            <div class="nav-item" style="margin-top: 20px; border-top: 1px solid #374151; color: #9ca3af;" onclick="window.open('import.html', '_blank')">
+                Import Data
+            </div>
+
             <div class="nav-item logout" onclick="logout()">Logout</div>
         </nav>
     </div>
@@ -197,6 +197,7 @@
                                 <input type="number" id="editEmailDelay" placeholder="60" value="60"
                                        class="alert-info-input"
                                        style="width: 60px; padding: 5px; border-radius: 4px;"
+                                       aria-label="Alert Delay Minutes"
                                        onchange="saveScheduleSettings()" oninput="this.value = this.value.replace(/[^0-9]/g, '');"/>
                                 <small class="alert-info-text" style="font-size:0.75rem;">minutes</small>
                             </div>
@@ -268,7 +269,7 @@
 
                             <div style="text-align:center; margin-bottom:1rem; font-weight:bold; color:#ccc;">— OR —</div>
 
-                            <span class="metrics-label">Paste Manual Data:</span>
+                            <label for="metricsInput" class="metrics-label">Paste Manual Data:</label>
                             <p style="font-size:0.8rem; color:#666; margin-bottom:0.5rem;">Copy the table directly from your Excel sheet or Database (Date, Amount, etc.) and paste below.</p>
                             <textarea id="metricsInput" class="metrics-textarea" placeholder="Paste rows here (e.g. 11/20/25  $7,492.63)..."></textarea>
                             <button class="btn btn-primary" style="width:100%; margin-top:1rem;" onclick="generateMetricsGraph()">Generate Graph</button>
@@ -532,7 +533,7 @@
                                         <label for="editCarrier">Select Carrier</label>
                                         <select id="editCarrier" onchange="generateSmsEmail()">
                                             <option value="">-- Select Carrier --</option>
-                                            <option value="vtext.com">Verizon / Xfinity</option>
+                                            <option value="vtext.com">Verizon / Xfinity Mobile</option>
                                             <option value="txt.att.net">AT&T</option>
                                             <option value="tmomail.net">T-Mobile</option>
                                             <option value="messaging.sprintpcs.com">Sprint</option>
@@ -575,40 +576,6 @@
             </div>
         </div>
 
-    </div>
-</div>
-
-<div id="addAccountModal" class="modal">
-    <div class="modal-content">
-        <h2>Add New Account</h2>
-        <div class="input-wrapper" style="margin-bottom:10px;">
-            <label for="accountName">Account Name (Location)</label>
-            <input type="text" id="accountName" placeholder="e.g. Downtown Office Park" />
-        </div>
-        <div class="input-wrapper" style="margin-bottom:10px;">
-            <label for="accountAddress">Full Address</label>
-            <input type="text" id="accountAddress" placeholder="123 Main St..." />
-        </div>
-        <div class="split-inputs-container">
-            <div class="input-wrapper"><label for="accountRevenue">Monthly Revenue ($)</label><input type="number" id="accountRevenue" placeholder="0.00" /></div>
-            <div class="input-wrapper"><label for="accountAlarm">Alarm Code</label><input type="text" id="accountAlarm" placeholder="e.g. 1234#" /></div>
-        </div>
-        <div class="split-inputs-container">
-            <div class="input-wrapper"><label for="accountStartDate">Start Date</label><input type="date" id="accountStartDate" /></div>
-            <div class="input-wrapper"><label for="accountEndDate">End Date (Optional)</label><input type="date" id="accountEndDate" /><small style="color:#666; font-size:0.7rem;">Leave blank if active</small></div>
-        </div>
-        <div style="border-top:1px dashed #e5e7eb; margin-top:10px; padding-top:10px;">
-            <h4 style="margin:0 0 10px 0; color:#0d9488; font-size:0.9rem;">Client Contact Info</h4>
-            <div class="input-wrapper" style="margin-bottom:10px;"><label for="contactName">Contact Name</label><input type="text" id="contactName" placeholder="e.g. Jane Smith" /></div>
-            <div class="split-inputs-container">
-                <div class="input-wrapper"><label for="contactPhone">Phone</label><input type="text" id="contactPhone" placeholder="(555) 123-4567" /></div>
-                <div class="input-wrapper"><label for="contactEmail">Email</label><input type="email" id="contactEmail" placeholder="jane@client.com" /></div>
-            </div>
-        </div>
-        <div class="modal-buttons">
-            <button onclick="saveNewAccount()">Add Account</button>
-            <button onclick="hideAddAccount()" class="cancel">Cancel</button>
-        </div>
     </div>
 </div>
 
@@ -846,7 +813,7 @@
         <p style="color:#666; margin-bottom:20px;">Please provide details for cancellation. This will move the account to the Inactive list.</p>
 
         <div class="input-wrapper" style="margin-bottom:15px;">
-            <label style="font-weight:700;">Reason for Cancellation <span style="color:red">*</span></label>
+            <label style="font-weight:700;" for="cancelReason">Reason for Cancellation <span style="color:red">*</span></label>
             <select id="cancelReason" onchange="toggleOtherReason(this)">
                 <option value="">-- Select Reason --</option>
                 <option value="Performance">Performance Issue</option>
@@ -859,12 +826,12 @@
         </div>
 
         <div class="input-wrapper" id="otherReasonDiv" style="display:none; margin-bottom:15px;">
-            <label>Specify Other Reason</label>
+            <label for="cancelReasonOther">Specify Other Reason</label>
             <input type="text" id="cancelReasonOther" placeholder="Details..." />
         </div>
 
         <div class="input-wrapper" style="margin-bottom:20px;">
-            <label style="font-weight:700;">End Date <span style="color:red">*</span></label>
+            <label style="font-weight:700;" for="cancelEndDate">End Date <span style="color:red">*</span></label>
             <input type="date" id="cancelEndDate" />
         </div>
 
@@ -891,7 +858,7 @@
             <label><input type="radio" name="inactiveReason" value="Other" onclick="document.getElementById('otherReasonInput').style.display = 'block'"> Other (Specify)</label>
         </div>
 
-        <input type="text" id="otherReasonInput" placeholder="Specify other reason" style="display: none; margin-bottom: 20px;" />
+        <input type="text" id="otherReasonInput" placeholder="Specify other reason" aria-label="Specify Other Reason" style="display: none; margin-bottom: 20px;" />
 
         <div class="modal-buttons">
             <button onclick="confirmInactiveAction()" class="btn btn-primary" id="btnConfirmInactive">Confirm Inactivation</button>
@@ -923,6 +890,50 @@
 <script src="js/payroll.js"></script>
 
 <script src="js/main.js"></script>
+
+<div id="addAccountModal" class="modal">
+    <div class="modal-content">
+        <h2>Add New Account</h2>
+
+        <div style="display: flex; gap: 10px; align-items: flex-end; margin-bottom: 15px; padding: 15px; background: #f0fdfa; border: 1px dashed #0d9488; border-radius: 8px;">
+            <div class="input-wrapper" style="flex: 1; margin-bottom: 0;">
+                <label for="accountPID" style="color: #0f766e; font-weight: 700;">Account ID (PID)</label>
+                <input type="text" id="accountPID" placeholder="Enter Account ID..." style="margin-bottom: 0; background: white;">
+            </div>
+            <button type="button" id="btnPidAutoFill" class="btn btn-primary" style="height: 45px; display: flex; align-items: center; gap: 5px; white-space: nowrap;">
+                ✨ PID Auto Fill
+            </button>
+        </div>
+        <div class="input-wrapper" style="margin-bottom:10px;">
+            <label for="accountName">Account Name (Location)</label>
+            <input type="text" id="accountName" placeholder="e.g. Downtown Office Park" />
+        </div>
+        <div class="input-wrapper" style="margin-bottom:10px;">
+            <label for="accountAddress">Full Address</label>
+            <input type="text" id="accountAddress" placeholder="123 Main St..." />
+        </div>
+        <div class="split-inputs-container">
+            <div class="input-wrapper"><label for="accountRevenue">Monthly Revenue ($)</label><input type="number" id="accountRevenue" placeholder="0.00" /></div>
+            <div class="input-wrapper"><label for="accountAlarm">Alarm Code</label><input type="text" id="accountAlarm" placeholder="e.g. 1234#" /></div>
+        </div>
+        <div class="split-inputs-container">
+            <div class="input-wrapper"><label for="accountStartDate">Start Date</label><input type="date" id="accountStartDate" /></div>
+            <div class="input-wrapper"><label for="accountEndDate">End Date (Optional)</label><input type="date" id="accountEndDate" /><small style="color:#666; font-size:0.7rem;">Leave blank if active</small></div>
+        </div>
+        <div style="border-top:1px dashed #e5e7eb; margin-top:10px; padding-top:10px;">
+            <h4 style="margin:0 0 10px 0; color:#0d9488; font-size:0.9rem;">Client Contact Info</h4>
+            <div class="input-wrapper" style="margin-bottom:10px;"><label for="contactName">Contact Name</label><input type="text" id="contactName" placeholder="e.g. Jane Smith" /></div>
+            <div class="split-inputs-container">
+                <div class="input-wrapper"><label for="contactPhone">Phone</label><input type="text" id="contactPhone" placeholder="(555) 123-4567" /></div>
+                <div class="input-wrapper"><label for="contactEmail">Email</label><input type="email" id="contactEmail" placeholder="jane@client.com" /></div>
+            </div>
+        </div>
+        <div class="modal-buttons">
+            <button onclick="saveNewAccount()">Add Account</button>
+            <button onclick="hideAddAccount()" class="cancel">Cancel</button>
+        </div>
+    </div>
+</div>
 
 </body>
 </html>
