@@ -1,31 +1,19 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>CleanDash Data Import (Admin)</title>
+    <title>CleanDash Diagnostic Importer</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; padding: 0; margin: 0; background: #f3f4f6; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        .container { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 600px; }
-        h1 { color: #0d9488; margin-top: 0; font-size: 1.5rem; border-bottom: 2px solid #f0fdfa; padding-bottom: 15px; margin-bottom: 20px; }
-        p { color: #4b5563; line-height: 1.5; font-size: 0.95rem; }
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f3f4f6; }
+        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 800px; margin: 0 auto; }
+        h1 { color: #0d9488; margin-top: 0; }
 
-        .upload-box { border: 2px dashed #cbd5e1; border-radius: 8px; padding: 30px; text-align: center; background: #f8fafc; transition: all 0.2s; margin: 20px 0; }
+        .upload-box { border: 2px dashed #cbd5e1; padding: 20px; text-align: center; background: #f8fafc; margin: 20px 0; }
+        button { background: #0d9488; color: white; border: none; padding: 12px 20px; font-size: 1rem; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        button:disabled { background: #9ca3af; cursor: not-allowed; }
 
-        button { background: #0d9488; color: white; border: none; padding: 12px 24px; font-size: 1rem; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; transition: background 0.2s; }
-        button:hover { background: #0f766e; }
-        button.disabled-state { background: #9ca3af !important; cursor: not-allowed !important; opacity: 0.7; }
-
-        /* Danger Zone Styles */
-        .danger-zone { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; }
-        .btn-danger { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
-        .btn-danger:hover { background: #dc2626; color: white; }
-
-        .log-window { background: #1f2937; color: #10b981; padding: 15px; height: 200px; overflow-y: auto; border-radius: 8px; margin-top: 20px; font-family: monospace; font-size: 0.85rem; display: none; }
-        .log-entry { margin-bottom: 4px; border-bottom: 1px solid #374151; padding-bottom: 2px; }
-        .log-error { color: #ef4444; font-weight: bold; }
-
-        .badge { display: inline-block; background: #e0f2fe; color: #0369a1; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; margin-bottom: 10px; }
-
-        #authWarning { display:none; background:#fee2e2; color:#991b1b; padding:15px; border-radius:8px; text-align:center; font-weight:bold; margin-bottom:20px; border:1px solid #f87171; }
+        #log { background: #1f2937; color: #10b981; padding: 15px; height: 350px; overflow-y: auto; border-radius: 8px; margin-top: 20px; font-family: monospace; font-size: 0.9rem; white-space: pre-wrap; }
+        .error { color: #ef4444; font-weight: bold; background: rgba(239, 68, 68, 0.1); padding: 2px; }
+        .warn { color: #f59e0b; }
     </style>
 
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -36,204 +24,187 @@
 <body>
 
 <div class="container">
-    <h1>Admin Data Importer</h1>
-    <div id="authWarning">
-        🔒 Access Denied. You must be logged in as nate@anagophilly.com to use this tool.
+    <h1>🔧 Diagnostic Importer</h1>
+    <p>This tool prints detailed logs to find out why the upload is freezing.</p>
+
+    <div class="upload-box">
+        <input type="file" id="uploadCsv" accept=".csv" />
     </div>
 
-    <div id="appContent" style="opacity:0.5; pointer-events:none;">
-        <div class="badge">Safe Mode: Upsert Only</div>
-        <p>Use this tool to update your <b>Master Client List</b>. <br>New clients will be added. Existing clients will be updated.</p>
-
-        <div class="upload-box">
-            <input type="file" id="uploadCsv" accept=".csv" />
-        </div>
-
-        <button id="btnUpload" class="disabled-state" disabled onclick="processFile()">🚀 Start Import</button>
-
-        <div id="status" style="margin-top:15px; text-align:center; font-weight:bold; color: #4b5563; min-height: 20px;"></div>
-        <div id="log" class="log-window"></div>
-
-        <div class="danger-zone">
-            <h4 style="margin: 0 0 10px 0; color: #dc2626;">Danger Zone</h4>
-            <p style="font-size: 0.85rem; margin-bottom: 15px;">Uploaded the wrong list? Use this to wipe the Master List clean.</p>
-            <button onclick="wipeMasterList()" class="btn-danger">🗑️ Delete All Master Data</button>
-        </div>
-    </div>
+    <button id="btnUpload" onclick="processFile()">Start Diagnostic Upload</button>
+    <div id="log">Waiting for file...</div>
 </div>
 
 <script src="js/auth.js"></script>
 
 <script>
-    const ALLOWED_ADMIN_EMAIL = 'nate@anagophilly.com';
-
-    firebase.auth().onAuthStateChanged(user => {
-        const warningBox = document.getElementById('authWarning');
-        const appContent = document.getElementById('appContent');
-        const btn = document.getElementById('btnUpload');
-
-        if (user && user.email && user.email.toLowerCase() === ALLOWED_ADMIN_EMAIL.toLowerCase()) {
-            warningBox.style.display = 'none';
-            appContent.style.opacity = '1';
-            appContent.style.pointerEvents = 'auto';
-            btn.disabled = false;
-            btn.classList.remove('disabled-state');
-        } else {
-            warningBox.style.display = 'block';
-            appContent.style.opacity = '0.5';
-            appContent.style.pointerEvents = 'none';
-            btn.disabled = true;
-            btn.classList.add('disabled-state');
-        }
-    });
-
-    function log(msg, isError = false) {
+    function log(msg, type = 'info') {
         const l = document.getElementById('log');
-        l.style.display = 'block';
-        const className = isError ? 'log-entry log-error' : 'log-entry';
-        l.innerHTML += `<div class="${className}">> ${msg}</div>`;
+        const entry = document.createElement('div');
+        entry.textContent = `> ${msg}`;
+        if(type === 'error') entry.className = 'error';
+        if(type === 'warn') entry.className = 'warn';
+        l.appendChild(entry);
         l.scrollTop = l.scrollHeight;
+        console.log(msg);
     }
 
     function processFile() {
-        const fileInput = document.getElementById('uploadCsv');
-        const file = fileInput.files[0];
-        if(!file) return alert("Please select a CSV file first.");
+        const file = document.getElementById('uploadCsv').files[0];
+        if(!file) return alert("Select a file first.");
 
         const btn = document.getElementById('btnUpload');
         btn.disabled = true;
-        btn.classList.add('disabled-state');
-        btn.innerText = "Processing...";
-        document.getElementById('status').innerText = "Reading file...";
+        document.getElementById('log').innerHTML = ''; // Clear log
 
+        log("STEP 1: Checking User Auth...");
+        const user = firebase.auth().currentUser;
+        if(!user) {
+            log("❌ ERROR: No user logged in. Please log in on the dashboard first.", "error");
+            btn.disabled = false;
+            return;
+        }
+        log(`✅ User detected: ${user.email}`);
+
+        log("STEP 2: Reading CSV file...");
         Papa.parse(file, {
             header: true,
             skipEmptyLines: true,
             complete: function(results) {
                 if (results.data.length === 0) {
+                    log("❌ ERROR: CSV file is empty.", "error");
                     btn.disabled = false;
-                    btn.classList.remove('disabled-state');
-                    btn.innerText = "🚀 Start Import";
-                    return alert("File appears empty.");
+                    return;
                 }
-                uploadToFirebase(results.data);
+                // Log the headers found to check for weird characters
+                log(`ℹ️ Headers Found: [${results.meta.fields.join(', ')}]`);
+                runDiagnosticUpload(results.data);
             },
             error: function(err) {
-                alert("CSV Error: " + err.message);
+                log(`❌ CSV READ ERROR: ${err.message}`, "error");
                 btn.disabled = false;
-                btn.classList.remove('disabled-state');
-                btn.innerText = "🚀 Start Import";
             }
         });
     }
 
-    async function uploadToFirebase(data) {
-        document.getElementById('status').innerText = `Analyzing ${data.length} rows...`;
-        log(`Starting upload for ${data.length} rows...`);
+    async function runDiagnosticUpload(data) {
+        log(`STEP 3: Processing ${data.length} rows...`);
+
+        // Check first row keys
+        const firstRow = data[0];
+        const keys = Object.keys(firstRow);
+        const pidKey = keys.find(k => k.includes('Client ID')); // Fuzzy search
+
+        if(!pidKey) {
+            log("❌ FATAL ERROR: Could not find a column named 'Client ID'.", "error");
+            log(`   Found these columns instead: ${keys.join(', ')}`, "warn");
+            log("   Fix: Open CSV and ensure cell A1 says exactly 'Client ID'.", "warn");
+            document.getElementById('btnUpload').disabled = false;
+            return;
+        }
+        log(`✅ Using '${pidKey}' as the ID column.`);
+
+        const batch = db.batch();
+        let count = 0;
+        const limit = 5; // ONLY TRY 5 ROWS FIRST for safety
+
+        log(`STEP 4: Attempting to upload FIRST 5 ROWS to test connection...`);
 
         try {
-            const batchSize = 400;
-            let batch = db.batch();
-            let count = 0;
-            let totalProcessed = 0;
-            let batchCount = 0;
+            for (let i = 0; i < Math.min(data.length, limit); i++) {
+                const row = data[i];
+                const pid = row[pidKey];
 
-            for (const row of data) {
-                const pid = row['Client ID'];
-                if (!pid) continue;
-
-                let cleanRev = row['Recur Amt'] ? parseFloat(row['Recur Amt'].replace(/[$,]/g, '')) : 0;
-                let cleanDate = '';
-                if(row['Start Date']) {
-                    const parts = row['Start Date'].split('-');
-                    if(parts.length === 3) cleanDate = `20${parts[2]}-${parts[0]}-${parts[1]}`;
+                if(!pid) {
+                    log(`⚠️ Skipped Row ${i+1}: Missing ID`);
+                    continue;
                 }
 
                 const docRef = db.collection('master_client_list').doc(String(pid).trim());
-                const updateData = {
+                batch.set(docRef, {
                     pid: pid,
-                    name: row['Service Location Name'] || '',
-                    address: `${row['Site Address'] || ''}, ${row['Site City'] || ''}, ${row['Site State'] || ''} ${row['Site Zip'] || ''}`.trim(),
-                    revenue: cleanRev,
-                    startDate: cleanDate,
-                    contactName: row['Contact Name'] || '',
-                    contactPhone: row['Contact Phone'] || '',
-                    contactEmail: row['Contact Email'] || '',
-                    lastImportedAt: firebase.firestore.FieldValue.serverTimestamp()
-                };
+                    test_upload: true,
+                    uploadedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
 
-                batch.set(docRef, updateData, { merge: true });
                 count++;
-                totalProcessed++;
-
-                if (count >= batchSize) {
-                    log(`Committing Batch ${batchCount + 1}...`);
-                    await batch.commit();
-                    batchCount++;
-                    log(`Batch ${batchCount} Success!`);
-                    batch = db.batch();
-                    count = 0;
-                }
             }
 
-            if (count > 0) {
-                log(`Committing Final Batch (${count} records)...`);
-                await batch.commit();
-                log(`Final Batch Success!`);
+            if(count === 0) {
+                log("❌ Error: No valid rows found in first 5 lines.", "error");
+                return;
             }
 
-            document.getElementById('status').innerText = `✅ Success! Synced ${totalProcessed} clients.`;
-            document.getElementById('btnUpload').innerText = "Import Complete";
-            document.getElementById('btnUpload').style.background = "#10b981";
-            document.getElementById('btnUpload').classList.remove('disabled-state');
-            alert(`Complete! ${totalProcessed} clients have been updated.`);
+            log(`⏳ Sending data to Firebase... (Please wait)`);
+            await batch.commit();
+            log(`✅ SUCCESS! Firebase Connection is Working.`, "warn");
+            log(`   (Test batch of ${count} records saved.)`);
 
-        } catch (error) {
-            console.error("Upload Error:", error);
-            log(`CRITICAL ERROR: ${error.message}`, true);
-            log("Upload stopped. Check database permissions.", true);
+            // If we get here, connection is good. Now do the real upload.
+            if(confirm("Test successful! Ready to upload the full list?")) {
+                uploadFullList(data, pidKey);
+            }
 
-            document.getElementById('status').innerText = "❌ Error occurred.";
-            const btn = document.getElementById('btnUpload');
-            btn.disabled = false;
-            btn.classList.remove('disabled-state');
-            btn.innerText = "Try Again";
-
-            alert("Error during upload. See log for details.");
+        } catch (e) {
+            log(`❌ FIREBASE ERROR: ${e.code}`, "error");
+            log(`   Message: ${e.message}`, "error");
+            log(`   HINT: This usually means 'Firestore Rules' are blocking you.`, "warn");
         }
+
+        document.getElementById('btnUpload').disabled = false;
     }
 
-    async function wipeMasterList() {
-        if(!confirm("⚠️ DANGER: This will delete ALL data in the Master Client List.\n\nThis cannot be undone. Are you sure?")) return;
-        const confirmation = prompt("To confirm deletion, type the word DELETE below:");
-        if (confirmation !== "DELETE") return alert("Deletion cancelled.");
+    async function uploadFullList(data, pidKey) {
+        log("--- STARTING FULL UPLOAD ---");
+        const batchSize = 400;
+        let batch = db.batch();
+        let count = 0;
+        let batchCount = 0;
 
-        document.getElementById('status').innerText = "DELETING ALL DATA...";
-        log("STARTED DELETION SEQUENCE...");
+        for (const row of data) {
+            const pid = row[pidKey];
+            if (!pid) continue;
 
-        try {
-            const collectionRef = db.collection('master_client_list');
-            const batchSize = 400;
+            // Clean Data
+            let cleanRev = 0;
+            if(row['Recur Amt']) cleanRev = parseFloat(row['Recur Amt'].replace(/[$,]/g, ''));
 
-            async function deleteBatch() {
-                const snapshot = await collectionRef.limit(batchSize).get();
-                if (snapshot.size === 0) {
-                    document.getElementById('status').innerText = "✅ Database is Empty.";
-                    log("Deletion Complete.");
-                    alert("All master data has been deleted.");
-                    return;
-                }
-                const batch = db.batch();
-                snapshot.docs.forEach((doc) => batch.delete(doc.ref));
-                await batch.commit();
-                log(`Deleted batch of ${snapshot.size} records...`);
-                await deleteBatch();
+            let cleanDate = '';
+            if(row['Start Date']) {
+                const parts = row['Start Date'].split('-');
+                if(parts.length === 3) cleanDate = `20${parts[2]}-${parts[0]}-${parts[1]}`;
             }
-            await deleteBatch();
-        } catch (e) {
-            console.error(e);
-            log(`Delete Error: ${e.message}`, true);
+
+            const docRef = db.collection('master_client_list').doc(String(pid).trim());
+            batch.set(docRef, {
+                pid: pid,
+                name: row['Service Location Name'] || '',
+                address: `${row['Site Address']||''} ${row['Site City']||''} ${row['Site State']||''} ${row['Site Zip']||''}`.trim(),
+                revenue: cleanRev,
+                startDate: cleanDate,
+                contactName: row['Contact Name'] || '',
+                contactPhone: row['Contact Phone'] || '',
+                contactEmail: row['Contact Email'] || '',
+                uploadedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+
+            count++;
+            if (count >= batchSize) {
+                await batch.commit();
+                batchCount++;
+                log(`Saved Batch ${batchCount} (${count} records)`);
+                batch = db.batch();
+                count = 0;
+            }
         }
+
+        if (count > 0) {
+            await batch.commit();
+            log(`Saved Final Batch (${count} records)`);
+        }
+
+        log("🎉 FULL UPLOAD COMPLETE!");
+        alert("Success! All data uploaded.");
     }
 </script>
 </body>
