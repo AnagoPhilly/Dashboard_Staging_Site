@@ -3,6 +3,15 @@
 function loadAccountsList() {
   if (!window.currentUser) return;
 
+  // --- DEV BUTTON VISIBILITY CHECK (Only for Nate) ---
+  if (window.currentUser.email === 'nate@anagophilly.com') {
+      const devBtn = document.getElementById('btnDeleteAllAccounts');
+      if (devBtn) {
+          devBtn.style.display = 'inline-block';
+      }
+  }
+  // ---------------------------------------------------
+
   const q = window.currentUser.email === 'admin@cleandash.com'
     ? db.collection('accounts')
     : db.collection('accounts').where('owner', '==', window.currentUser.email);
@@ -80,6 +89,69 @@ function loadAccountsList() {
 
   });
 }
+
+// --- NEW DEV FUNCTION: DELETE ALL ACCOUNTS (Updated to Simple Confirm) ---
+window.deleteAllAccountsForDev = async function() {
+    // 1. Strict Security Check
+    if (!window.currentUser || window.currentUser.email !== 'nate@anagophilly.com') {
+        return alert("Access Denied.");
+    }
+
+    // 2. Simple Confirmation
+    if(!confirm("⚠️ DANGER ZONE ⚠️\n\nAre you sure you want to PERMANENTLY delete ALL your accounts?\n\nClick OK to confirm.")) {
+        return;
+    }
+
+    const btn = document.getElementById('btnDeleteAllAccounts');
+    btn.disabled = true;
+    btn.textContent = "Deleting...";
+
+    try {
+        // 3. Fetch all accounts
+        const snap = await db.collection('accounts')
+            .where('owner', '==', 'nate@anagophilly.com')
+            .get();
+
+        if (snap.empty) {
+            alert("No accounts found to delete.");
+            btn.disabled = false; btn.textContent = "⚠️ Delete All";
+            return;
+        }
+
+        // 4. Batch Delete (Firestore limit is 500 per batch)
+        const batchSize = 400;
+        let batch = db.batch();
+        let count = 0;
+        let deletedTotal = 0;
+
+        for (const doc of snap.docs) {
+            batch.delete(doc.ref);
+            count++;
+            deletedTotal++;
+
+            if (count >= batchSize) {
+                await batch.commit();
+                batch = db.batch();
+                count = 0;
+            }
+        }
+
+        if (count > 0) {
+            await batch.commit();
+        }
+
+        window.showToast(`Deleted ${deletedTotal} accounts.`);
+        loadAccountsList();
+        if (typeof loadMap === 'function') loadMap();
+        if (typeof generateMetricsGraphFromDB === 'function') generateMetricsGraphFromDB();
+
+    } catch (e) {
+        alert("Error deleting: " + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "⚠️ Delete All";
+    }
+};
 
 // --- INACTIVE REASON MODAL (Used only for "Soft Delete" / Marking Inactive) ---
 

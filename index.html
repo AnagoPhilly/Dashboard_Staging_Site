@@ -122,11 +122,12 @@
                             <p>Manage your client list, revenue, and building specifications.</p>
                         </div>
                         <div style="display:flex; gap:10px;">
+                            <button id="btnDeleteAllAccounts" onclick="deleteAllAccountsForDev()" class="btn btn-danger" style="display:none; background:#b91c1c;">⚠️ Delete All</button>
+
                             <button onclick="window.open('import.html', '_blank')" class="btn btn-secondary" style="border:1px solid #d1d5db;">📂 Import List</button>
                             <button onclick="showAddAccount()" class="btn btn-primary">+ Add Account</button>
                         </div>
                     </div>
-
                     <h3 style="color:#0d9488; border-bottom:2px solid #f0fdfa; padding-bottom:10px; margin-bottom:15px;">Active Accounts</h3>
                     <div id="accountsList">
                         <p style="color:#888; text-align:center;">Loading accounts...</p>

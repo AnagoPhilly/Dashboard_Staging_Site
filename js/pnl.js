@@ -5,7 +5,7 @@ let allAccounts = [];
 function loadPnL() {
   console.log("CleanDash: Loading P&L...");
   const container = document.getElementById('accountsContainer');
-  
+
   if (!container) {
       console.error("CleanDash: Accounts container not found!");
       return;
@@ -27,7 +27,7 @@ function loadPnL() {
   q.orderBy('name').get().then(snap => {
     allAccounts = [];
     container.innerHTML = '';
-    
+
     // Ensure hidden sections are handled if no data exists
     if (snap.empty) {
       container.innerHTML = '<p style="text-align:center;padding:3rem;color:#888;font-size:1.3rem;">No accounts found.</p>';
@@ -42,18 +42,18 @@ function loadPnL() {
       const data = doc.data();
       data.id = doc.id;
       allAccounts.push(data);
-      
+
       const wrapper = document.createElement('div');
       wrapper.className = 'pnl-item-wrapper';
       wrapper.dataset.accountId = data.id;
-      
+
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
       checkbox.id = `pnl-toggle-${data.id}`;
       checkbox.className = 'pnl-account-checkbox';
-      checkbox.checked = true; 
+      checkbox.checked = true;
       checkbox.dataset.accountId = data.id;
-      checkbox.setAttribute('onchange', 'calculateAll()'); 
+      checkbox.setAttribute('onchange', 'calculateAll()');
 
       const accordion = document.createElement('button');
       accordion.className = 'accordion';
@@ -61,7 +61,7 @@ function loadPnL() {
 
       const panel = document.createElement('div');
       panel.className = 'panel';
-      
+
       // Build the account details panel with specific toggle
       panel.innerHTML = `
         <div class="pnl-grid">
@@ -122,11 +122,11 @@ function loadPnL() {
           </div>
         </div>
       `;
-      
+
       // Accordion Click Logic
       accordion.addEventListener('click', function() {
         this.classList.toggle('active');
-        this.parentElement.classList.toggle('accordion-open'); 
+        this.parentElement.classList.toggle('accordion-open');
         const panel = this.parentElement.nextElementSibling;
         panel.style.maxHeight = panel.style.maxHeight ? null : panel.scrollHeight + "px";
       });
@@ -138,7 +138,7 @@ function loadPnL() {
     });
 
     // Run calculations to populate numbers
-    window.calculateAll(); 
+    window.calculateAll();
   }).catch(err => {
       console.error("CleanDash: Error loading accounts:", err);
       container.innerHTML = '<p style="text-align:center;padding:2rem;color:red;">Error loading data.</p>';
@@ -149,11 +149,11 @@ function loadPnL() {
 window.calculateAll = async function() {
   console.log("CleanDash: Calculating P&L...");
   if (!window.currentUser) return;
-  
+
   // Default values
   let userCodbPercentage = 25;
-  let userCfiFactor = 0; 
-  
+  let userCfiFactor = 0;
+
   // Fetch user settings
   try {
       const userDoc = await db.collection('users').doc(window.currentUser.uid).get();
@@ -168,17 +168,17 @@ window.calculateAll = async function() {
 
   const codbFactor = userCodbPercentage / 100;
   const INTEREST_RATE = 0.12;
-  
+
   if (typeof allAccounts === 'undefined' || allAccounts.length === 0) {
       return;
   }
-  
+
   const checkedAccountIds = Array.from(document.querySelectorAll('.pnl-account-checkbox:checked'))
                                  .map(checkbox => checkbox.dataset.accountId);
-                                 
-  let totalRevenue = 0, totalLabor = 0, totalSupplies = 0, totalOverhead = 0, 
+
+  let totalRevenue = 0, totalLabor = 0, totalSupplies = 0, totalOverhead = 0,
       totalCfeesDisplayed = 0, totalCodb = 0;
-  let totalCfeesActual = 0; 
+  let totalCfeesActual = 0;
 
   // Process each account
   allAccounts.forEach(acc => {
@@ -186,32 +186,32 @@ window.calculateAll = async function() {
     const labor = parseFloat(document.getElementById(`input-labor-${acc.id}`)?.value) || 0;
     const supplies = parseFloat(document.getElementById(`input-supplies-${acc.id}`)?.value) || 0;
     const overhead = parseFloat(document.getElementById(`input-overhead-${acc.id}`)?.value) || 0;
-    
+
     // Check specific toggle for this account
     const includeThisCfee = document.getElementById(`cfee-toggle-${acc.id}`)?.checked || false;
-    
-    const codb = revenue * codbFactor; 
+
+    const codb = revenue * codbFactor;
     const cfeeBase = revenue * userCfiFactor;
-    const totalAnnualCost = cfeeBase * (1 + INTEREST_RATE); 
-    const cfees = totalAnnualCost / 12; 
-    
+    const totalAnnualCost = cfeeBase * (1 + INTEREST_RATE);
+    const cfees = totalAnnualCost / 12;
+
     // Update individual account UI
-    const codbLabelEl = document.getElementById(`codbLabel-${acc.id}`); 
+    const codbLabelEl = document.getElementById(`codbLabel-${acc.id}`);
     const codbEl = document.getElementById(`codb-${acc.id}`);
-    const cfeesEl = document.getElementById(`cfees-${acc.id}`); 
-    
+    const cfeesEl = document.getElementById(`cfees-${acc.id}`);
+
     if (codbLabelEl) codbLabelEl.textContent = `${userCodbPercentage}% of Revenue`;
     if (codbEl) codbEl.textContent = '$' + codb.toFixed(0).toLocaleString();
     if (cfeesEl) cfeesEl.textContent = '$' + cfees.toFixed(0).toLocaleString();
 
     // Add to Grand Totals if checked
-    if (checkedAccountIds.includes(acc.id)) { 
+    if (checkedAccountIds.includes(acc.id)) {
         totalRevenue += revenue;
         totalLabor += labor;
         totalSupplies += supplies;
         totalOverhead += overhead;
         totalCodb += codb;
-        
+
         let accountCfeesActual = 0;
         if (includeThisCfee) {
             totalCfeesActual += cfees;
@@ -229,16 +229,16 @@ window.calculateAll = async function() {
 
   // Calculate final totals
   const totalExpenses = totalLabor + totalSupplies + totalOverhead + totalCodb + totalCfeesActual;
-  const netProfit = totalRevenue - totalExpenses; 
+  const netProfit = totalRevenue - totalExpenses;
   const annualProfit = netProfit * 12;
 
   const cogs = totalLabor + totalSupplies;
-  const operatingExpenses = totalOverhead + totalCodb + totalCfeesActual; 
+  const operatingExpenses = totalOverhead + totalCodb + totalCfeesActual;
 
   const netProfitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
   const cogsPercent = totalRevenue > 0 ? (cogs / totalRevenue) * 100 : 0;
-  const oerPercent = totalRevenue > 0 ? (operatingExpenses / totalRevenue) * 100 : 0; 
-  const cashFlowRatio = netProfit >= 0 ? 'good' : 'bad'; 
+  const oerPercent = totalRevenue > 0 ? (operatingExpenses / totalRevenue) * 100 : 0;
+  const cashFlowRatio = netProfit >= 0 ? 'good' : 'bad';
 
   // --- RENDER SCORECARD ---
   const scorecardHtml = `
@@ -265,12 +265,12 @@ window.calculateAll = async function() {
 
   // --- RENDER CHART ---
   const chartData = [
-      { name: 'Labor', value: totalLabor, color: '#f87171' }, 
-      { name: 'Supplies', value: totalSupplies, color: '#fb923c' }, 
+      { name: 'Labor', value: totalLabor, color: '#f87171' },
+      { name: 'Supplies', value: totalSupplies, color: '#fb923c' },
       { name: 'Overhead', value: totalOverhead, color: '#facc15' },
       { name: 'CoDB', value: totalCodb, color: '#34d399' },
-      { name: 'Cfees', value: totalCfeesActual, color: '#60a5fa' }, 
-      { name: 'Net Profit', value: netProfit > 0 ? netProfit : 0, color: '#0d9488' } 
+      { name: 'Cfees', value: totalCfeesActual, color: '#60a5fa' },
+      { name: 'Net Profit', value: netProfit > 0 ? netProfit : 0, color: '#0d9488' }
   ];
 
   let chartHtml = '';
@@ -297,7 +297,7 @@ window.calculateAll = async function() {
   document.getElementById('totalAllLabor').textContent = '$' + totalLabor.toFixed(0).toLocaleString();
   document.getElementById('totalAllSupplies').textContent = '$' + totalSupplies.toFixed(0).toLocaleString();
   document.getElementById('totalAllOverhead').textContent = '$' + totalOverhead.toFixed(0).toLocaleString();
-  document.getElementById('totalAllCfees').textContent = '$' + totalCfeesActual.toFixed(0).toLocaleString(); 
+  document.getElementById('totalAllCfees').textContent = '$' + totalCfeesActual.toFixed(0).toLocaleString();
   document.getElementById('totalAllCodb').textContent = '$' + totalCodb.toFixed(0).toLocaleString();
   document.getElementById('totalAllExpenses').textContent = '$' + totalExpenses.toFixed(0).toLocaleString();
   document.getElementById('totalNetMonthly').textContent = '$' + netProfit.toFixed(0).toLocaleString();

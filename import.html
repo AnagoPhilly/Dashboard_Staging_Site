@@ -21,6 +21,7 @@
         .log-window { background: #1f2937; color: #10b981; padding: 15px; height: 250px; overflow-y: auto; border-radius: 8px; margin-top: 20px; font-family: monospace; font-size: 0.85rem; display: none; }
         .log-entry { margin-bottom: 4px; border-bottom: 1px solid #374151; padding-bottom: 2px; }
         .log-warn { color: #f59e0b; }
+        .log-error { color: #ef4444; font-weight: bold; }
 
         .danger-zone { margin-top: 30px; padding-top: 20px; border-top: 2px solid #fee2e2; }
         .btn-danger { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
@@ -97,6 +98,7 @@
         l.style.display = 'block';
         let cls = 'log-entry';
         if(type==='warn') cls += ' log-warn';
+        if(type==='error') cls += ' log-error';
         l.innerHTML += `<div class="${cls}">> ${msg}</div>`;
         l.scrollTop = l.scrollHeight;
     }
@@ -134,8 +136,8 @@
             skipEmptyLines: true,
             transformHeader: h => h.trim(), // Remove whitespace from headers automatically
             complete: function(results) {
-                if(mode === 'master') uploadMasterList(results.data);
-                else uploadHistoryBook(results.data);
+                if(mode === 'master') uploadMasterList(results.data, results.meta.fields);
+                else uploadHistoryBook(results.data, results.meta.fields);
             },
             error: function(err) {
                 alert("CSV Error: " + err.message);
@@ -145,15 +147,20 @@
         });
     }
 
-    async function uploadMasterList(data) {
-        log("Starting Master List Upload...");
+    async function uploadMasterList(data, headers) {
+        log(`Starting Master List Upload...`);
+        log(`Headers Found: [${headers.join(', ')}]`);
+
         const batchSize = 400;
         let batch = db.batch();
         let count = 0;
 
         for (const row of data) {
             const pid = row['Client ID'];
-            if (!pid) continue;
+            if (!pid) {
+                log(`Skipping row: Missing 'Client ID'`, 'warn');
+                continue;
+            }
 
             let cleanRev = row['Recur Amt'] ? parseFloat(row['Recur Amt'].replace(/[$,]/g, '')) : 0;
             let cleanDate = formatDate(row['Start Date']);
@@ -188,8 +195,17 @@
         alert("Master List Updated!");
     }
 
-    async function uploadHistoryBook(data) {
-        log("Starting History Import (Aggressive Date Logic)...");
+    async function uploadHistoryBook(data, headers) {
+        log("Starting History Import...");
+        log(`Headers Found: [${headers.join(', ')}]`);
+
+        if(!headers.includes('Client')) {
+            log("CRITICAL ERROR: 'Client' column not found in CSV!", 'error');
+            alert("Error: Your CSV is missing the 'Client' column.");
+            document.getElementById('btnUpload').disabled = false;
+            return;
+        }
+
         const doGeo = document.getElementById('geoEnabled').checked;
         const batchSize = 400;
         let batch = db.batch();
@@ -198,10 +214,14 @@
         let batchCounter = 0;
 
         for (const row of data) {
-            const type = row['Type'];
+            const rawType = row['Type'] || '';
+            const type = rawType.trim();
             const clientId = row['Client'];
 
-            if (!clientId || type === '1x Job') continue;
+            if (!clientId) {
+                log("Skipping row: Missing 'Client' ID", 'warn');
+                continue;
+            }
 
             // Lookup Master Data
             let masterData = {};
@@ -213,42 +233,50 @@
             const finalName = masterData.name || `Client ${clientId}`;
             const finalAddr = masterData.address || 'Address Lookup Failed';
 
-            // --- SMART DATE & STATUS LOGIC (FIXED) ---
+            // --- SMART STATUS LOGIC ---
+            // Identify if "One Time" job
+            const isOneTime = type.toLowerCase().includes('1x job');
+
+            // Identify if Inactive (Transfer, Inactive status, or 1x Job)
+            let isInactive = (
+                type === 'Inactive' ||
+                type.startsWith('Transfer') ||
+                isOneTime
+            );
+
             let endDate = null;
             let inactiveReason = null;
 
-            // Check if account should be inactive
-            let isInactive = (type === 'Inactive' || type === 'Transfer' || type === 'Transfer FR Request');
-
             if (isInactive) {
-                if (type.includes('Transfer')) {
-                    inactiveReason = 'Transferred';
+                if (isOneTime) {
+                    inactiveReason = 'One-Time Job';
+                    endDate = formatDate(row['Start Date']) || new Date().toISOString().split('T')[0];
+                } else if (type.includes('Transfer')) {
+                    inactiveReason = type;
                 } else {
                     inactiveReason = 'Past Service';
                 }
 
-                // Priority 1: Transfer Date
+                // Date Priority Logic
                 let endRaw = row['Transfer Date'];
-
-                // Priority 2: Last Clean
                 if (!endRaw || endRaw.trim() === '') endRaw = row['Last Clean'];
-
-                // Priority 3: Last Responsible
                 if (!endRaw || endRaw.trim() === '') endRaw = row['Last Responsible'];
 
                 if (endRaw) endDate = formatDate(endRaw);
 
-                // FORCE FALLBACK: If status is inactive but no date found, use TODAY.
-                // This fixes the "Infinite Graph" bug.
                 if (!endDate) {
                     endDate = new Date().toISOString().split('T')[0];
-                    log(`⚠️ Forced End Date (Today) for: ${clientId}`, 'warn');
                 }
             }
             // -------------------------------
 
             const startDate = formatDate(row['Start Date']);
-            const revenue = row['Recur Amt'] ? parseFloat(row['Recur Amt'].replace(/[$,]/g, '')) : 0;
+
+            // Safe parsing for Revenue (Handles commas in quotes)
+            let revenue = 0;
+            if(row['Recur Amt']) {
+                 revenue = parseFloat(row['Recur Amt'].replace(/[$,]/g, ''));
+            }
 
             // Geocoding
             let lat = null;
@@ -306,7 +334,7 @@
         document.getElementById('btnUpload').classList.remove('disabled-state');
         document.getElementById('btnUpload').innerText = "Start Import";
 
-        alert(`Import Complete!`);
+        alert(`Import Complete! Processed ${created} records.`);
     }
 
     function formatDate(dateStr) {
