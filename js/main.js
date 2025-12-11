@@ -3,80 +3,125 @@
 function startApp() {
     console.log("CleanDash: Main app logic starting...");
 
-    // 1. Initialize Profile Listeners (if the function exists)
-    // Note: We check for existence because this script loads after the profile.js file.
+    // 1. Initialize Profile Listeners
     if(typeof window.initProfileListeners === 'function') {
         try {
             window.initProfileListeners();
-            console.log("CleanDash: Profile listeners initialized.");
         } catch (err) {
             console.error("CleanDash: Error initializing profile listeners:", err);
         }
     }
 
-    // 2. Tab Navigation Logic
-    const navItems = document.querySelectorAll('.nav-item[data-page]');
-    
-    if (navItems.length === 0) {
-        console.error("CleanDash: No navigation items found! Check your HTML classes.");
+    // 2. Initialize Admin "God Mode"
+    if(typeof initAdminDashboard === 'function') {
+        // We set a small timeout to ensure Auth is ready if this runs on reload
+        setTimeout(initAdminDashboard, 1000);
     }
+
+    // 3. Tab Navigation Logic
+    const navItems = document.querySelectorAll('.nav-item[data-page]');
 
     navItems.forEach(item => {
         item.addEventListener('click', () => {
             console.log("CleanDash: Navigating to", item.dataset.page);
 
-            // A. Remove active class from all nav items
             document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-            
-            // B. Add active class to clicked item
             item.classList.add('active');
-            
-            // C. Hide all pages
+
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-            
-            // D. Show the target page
+
             const targetPage = document.getElementById(item.dataset.page);
             if (targetPage) {
                 targetPage.classList.add('active');
-            } else {
-                console.error("CleanDash: Target page not found:", item.dataset.page);
             }
-    
-            // E. Run page-specific loaders (Check if the function from the relevant JS file exists)
+
+            // Run page-specific loaders
             const page = item.dataset.page;
 
-            // Dashboard (Map)
             if (page === 'dashboard' && typeof window.loadMap === 'function') window.loadMap();
-
-            // Accounts
             if (page === 'accounts' && typeof window.loadAccountsList === 'function') window.loadAccountsList();
-
-            // Team Management (Phase 1)
             if (page === 'employees' && typeof window.loadEmployees === 'function') window.loadEmployees();
-
-            // Scheduler (Phase 2)
             if (page === 'scheduler' && typeof window.loadScheduler === 'function') window.loadScheduler();
-
-            // Payroll Tracking (Phase 5)
             if (page === 'payroll' && typeof window.loadPayroll === 'function') window.loadPayroll();
-
-            // P&L Statement
             if (page === 'pnl' && typeof window.loadPnL === 'function') window.loadPnL();
-
-            // C-Fee Calculator
             if (page === 'cfee_calc' && typeof window.initCfeeCalc === 'function') window.initCfeeCalc();
-
-            // Profile
             if (page === 'profile' && typeof window.loadProfile === 'function') window.loadProfile();
         });
     });
 }
 
-// 3. Robust Startup: Ensures the startApp function runs regardless of when the script loads.
+// --- ADMIN GOD MODE LOGIC (Simplified for Button) ---
+
+async function initAdminDashboard() {
+    const ADMIN_EMAIL = 'nate@anagophilly.com';
+
+    if (!window.currentUser || window.currentUser.email.toLowerCase() !== ADMIN_EMAIL) {
+        return;
+    }
+
+    console.log("CleanDash: Admin Mode Active.");
+
+    const adminDiv = document.getElementById('adminControls');
+    const statusLabel = document.getElementById('adminModeStatusLabel');
+    const toggleButton = document.getElementById('godModeToggleButton');
+
+    // Check if the current user is the admin AND if the current page is not admin.html
+    const isOwnerDashboard = !window.location.pathname.includes('admin.html');
+
+    if (adminDiv) adminDiv.style.display = 'block';
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const viewAsEmail = urlParams.get('viewAs');
+    const isImpersonating = viewAsEmail && isOwnerDashboard; // Admin viewing another owner's dashboard
+
+    // If on the Admin's DASHBOARD VIEW (index.html)
+    if (isOwnerDashboard) {
+        if (isImpersonating) {
+            // If IMPERSONATING: Show current view and a REVERT button
+            // Note: window.currentUser.email holds the impersonated email here (set by auth.js)
+            if (statusLabel) statusLabel.textContent = `STATUS: Viewing ${window.currentUser.email}`;
+            if (toggleButton) {
+                toggleButton.textContent = '🔥 Revert to God Mode';
+                toggleButton.style.backgroundColor = '#f59e0b'; // Amber for revert
+            }
+        } else {
+            // If on the Admin's OWN Dashboard View (no ?viewAs=)
+            if (statusLabel) statusLabel.textContent = 'STATUS: Dashboard View';
+            if (toggleButton) {
+                toggleButton.textContent = '🔥 Go to God Mode';
+                toggleButton.style.backgroundColor = '#ef4444'; // Red for switch
+            }
+        }
+    } else {
+        // If on the God Mode Control Center (admin.html)
+        if (statusLabel) statusLabel.textContent = 'STATUS: God Mode Active';
+        if (toggleButton) {
+            toggleButton.textContent = '🔙 Exit to Dashboard';
+            toggleButton.style.backgroundColor = '#64748b'; // Secondary/Gray for exit
+        }
+    }
+}
+
+// New single-click function to handle the button press
+window.toggleGodModeView = function() {
+    // Check if we are currently on the God Mode page
+    const isOnGodModePage = window.location.pathname.includes('admin.html');
+
+    if (isOnGodModePage) {
+        // ACTION: Exit God Mode -> Go to Admin's own Dashboard View (index.html, no params)
+        window.showToast("Exiting God Mode...");
+        window.location.replace('index.html');
+    } else {
+        // ACTION: Go to God Mode -> Redirect to admin.html. This also covers the "Revert" action
+        // because we want to clear the ?viewAs= parameter from the URL.
+        window.showToast("Switching to God Mode...");
+        window.location.replace('admin.html');
+    }
+};
+
+// --- STARTUP ---
 if (document.readyState === 'loading') {
-    // If the page is still loading, wait for the content to be ready.
     document.addEventListener('DOMContentLoaded', startApp);
 } else {
-    // If the page is already loaded, run the function immediately.
     startApp();
 }

@@ -1,10 +1,34 @@
 // js/employee_portal.js
 
-let currentWeekStart = new Date();
-const day = currentWeekStart.getDay();
-const diff = currentWeekStart.getDate() - day + (day === 0 ? -6 : 1);
-currentWeekStart.setDate(diff);
-currentWeekStart.setHours(0,0,0,0);
+// --- GLOBAL STATE ---
+// Load state from session, default to 'week' view and today's date
+let currentView = sessionStorage.getItem('empPortalView') || 'week';
+let currentStartDate = sessionStorage.getItem('empPortalDate')
+    ? new Date(sessionStorage.getItem('empPortalDate'))
+    : new Date();
+
+// Helper to normalize the date based on the current view
+function normalizeDate(date, view) {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    if (view === 'week') {
+        // Calculate the Monday of the current week (or Sunday if using day === 0)
+        const day = d.getDay();
+        // 0=Sun, 1=Mon... If day is 0 (Sunday), diff is -6 (back to Monday of prior week)
+        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+        d.setDate(diff);
+    } else if (view === 'month') {
+        d.setDate(1);
+    }
+    return d;
+}
+
+// Normalize the start date once and ensure the date object is correct
+currentStartDate = normalizeDate(currentStartDate, currentView);
+
+// Save initial state to session
+sessionStorage.setItem('empPortalView', currentView);
+sessionStorage.setItem('empPortalDate', currentStartDate.toISOString());
 
 const MAX_DISTANCE_KM = 0.5; // 500 meters allow radius
 
@@ -40,41 +64,74 @@ auth.onAuthStateChanged(async user => {
 async function loadMyShifts(employeeId) {
     const container = document.getElementById('schedulerGrid');
     const hoursDisplay = document.getElementById('totalHoursDisplay');
-
-    // Date Header
-    const weekEnd = new Date(currentWeekStart);
-    weekEnd.setDate(weekEnd.getDate() + 6);
-
     const dateEl = document.getElementById('weekRangeDisplay');
-    if(dateEl) dateEl.textContent = `${currentWeekStart.toLocaleDateString()} - ${weekEnd.toLocaleDateString()}`;
+
+    // Clear the grid before loading
+    container.innerHTML = '';
+
+    // Update view buttons
+    document.querySelectorAll('.btn-view-toggle').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.view === currentView);
+    });
+
+    // Set date header based on current view
+    if(dateEl) {
+        if (currentView === 'month') {
+             dateEl.textContent = currentStartDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        } else if (currentView === 'day') {
+             dateEl.textContent = currentStartDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+        } else {
+             const weekEnd = new Date(currentStartDate);
+             weekEnd.setDate(currentStartDate.getDate() + 6);
+             dateEl.textContent = `${currentStartDate.toLocaleDateString()} - ${weekEnd.toLocaleDateString()}`;
+        }
+    }
 
     try {
-        // Fetch Jobs
-        const snap = await db.collection('jobs')
+        // --- 1. Fetch ALL jobs for rendering ---
+        const allSnap = await db.collection('jobs')
             .where('employeeId', '==', employeeId)
             .get();
 
-        const jobs = [];
+        const jobsForRender = [];
         let totalHours = 0;
 
-        snap.forEach(doc => {
+        allSnap.forEach(doc => {
             const j = doc.data();
             j.id = doc.id;
             j.start = j.startTime.toDate();
             j.end = j.endTime.toDate();
-            jobs.push(j);
 
-            // Calculate Hours if Completed
+            // Calculate total hours only for completed jobs within the current period
             if (j.status === 'Completed' && j.actualStartTime && j.actualEndTime) {
-                const diffMs = j.actualEndTime.toDate() - j.actualStartTime.toDate();
-                const hrs = diffMs / (1000 * 60 * 60);
-                totalHours += hrs;
+                 const jobEnd = j.actualEndTime.toDate();
+
+                 // Find the end date of the current display period (for hour calculation)
+                 let periodEnd = new Date(currentStartDate);
+                 if (currentView === 'week') periodEnd.setDate(periodEnd.getDate() + 6);
+                 else if (currentView === 'month') periodEnd.setMonth(periodEnd.getMonth() + 1);
+
+                 // Simplified calculation: If job ended within period, add hours.
+                 // Note: This total is cumulative and not strictly based on the visible schedule for simplicity.
+                 if (jobEnd >= normalizeDate(currentStartDate, currentView) && jobEnd <= periodEnd) {
+                    const diffMs = jobEnd - j.actualStartTime.toDate();
+                    const hrs = diffMs / (1000 * 60 * 60);
+                    totalHours += hrs;
+                 }
             }
+            jobsForRender.push(j);
         });
 
         if(hoursDisplay) hoursDisplay.textContent = totalHours.toFixed(2);
 
-        renderReadCalendar(jobs);
+        // --- 2. RENDER BASED ON VIEW ---
+        if (currentView === 'month') {
+            renderMonthView(jobsForRender);
+        } else if (currentView === 'day') {
+            renderDayView(jobsForRender);
+        } else {
+            renderWeekView(jobsForRender);
+        }
 
     } catch (e) {
         console.error(e);
@@ -82,39 +139,51 @@ async function loadMyShifts(employeeId) {
     }
 }
 
-function renderReadCalendar(jobs) {
+// --- RENDERERS ---
+
+function isSameDay(d1, d2) {
+    return d1.getFullYear() === d2.getFullYear() &&
+           d1.getMonth() === d2.getMonth() &&
+           d1.getDate() === d2.getDate();
+}
+
+function formatTime(date) {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+
+function renderWeekView(jobs) {
     const grid = document.getElementById('schedulerGrid');
     if(!grid) return;
-    grid.innerHTML = '';
+    grid.style.display = 'flex'; // Ensure week view uses flex for horizontal scrolling
+    grid.style.gridTemplateColumns = 'none'; // Clear month view grid
 
     for (let i = 0; i < 7; i++) {
-        const colDate = new Date(currentWeekStart);
-        colDate.setDate(colDate.getDate() + i);
+        const colDate = new Date(currentStartDate);
+        colDate.setDate(currentStartDate.getDate() + i);
         const dateString = colDate.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' });
 
         const col = document.createElement('div');
         col.className = 'calendar-col';
         col.innerHTML = `<div class="cal-header">${dateString}</div>`;
 
-        const dayJobs = jobs.filter(j =>
-            j.start.getDate() === colDate.getDate() &&
-            j.start.getMonth() === colDate.getMonth()
-        );
+        // Only show jobs that fall on this specific day
+        const dayJobs = jobs.filter(j => isSameDay(j.start, colDate));
 
         dayJobs.sort((a, b) => a.start - b.start);
 
         dayJobs.forEach(job => {
-            const timeStr = job.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const timeStr = formatTime(job.start);
 
             // Determine Button State
             let actionBtn = '';
 
             if (job.status === 'Completed') {
-                const actualEnd = job.actualEndTime ? new Date(job.actualEndTime.toDate()).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : 'Done';
+                const actualEnd = job.actualEndTime ? formatTime(job.actualEndTime.toDate()) : 'Done';
                 actionBtn = `<div class="status-badge completed">🏁 Ended: ${actualEnd}</div>`;
 
             } else if (job.status === 'Started') {
-                const actualStart = job.actualStartTime ? new Date(job.actualStartTime.toDate()).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
+                const actualStart = job.actualStartTime ? formatTime(job.actualStartTime.toDate()) : '';
                 actionBtn = `
                     <div style="font-size:0.75rem; color:green; margin-bottom:4px;">Started: ${actualStart}</div>
                     <button class="btn-clockout" onclick="attemptClockOut('${job.id}', '${job.accountId}')">🛑 Clock Out</button>
@@ -138,7 +207,158 @@ function renderReadCalendar(jobs) {
     }
 }
 
-// --- GEOFENCING & ACTIONS ---
+function renderDayView(jobs) {
+    const grid = document.getElementById('schedulerGrid');
+    if(!grid) return;
+    grid.innerHTML = '';
+    grid.style.display = 'flex';
+    grid.style.justifyContent = 'center';
+    grid.style.overflowX = 'hidden';
+
+    const colDate = currentStartDate;
+    const dateString = colDate.toLocaleDateString('en-US', { weekday: 'long', month: 'numeric', day: 'numeric' });
+
+    const col = document.createElement('div');
+    col.className = 'calendar-col';
+    col.style.flex = '0 0 250px'; // Wider for single day view
+    col.innerHTML = `<div class="cal-header">${dateString}</div>`;
+
+    const dayJobs = jobs.filter(j => isSameDay(j.start, colDate));
+    dayJobs.sort((a, b) => a.start - b.start);
+
+    if (dayJobs.length === 0) {
+        col.innerHTML += '<div style="text-align:center; padding:2rem; color:#9ca3af; font-size:0.9rem;">No shifts scheduled.</div>';
+    } else {
+        dayJobs.forEach(job => {
+            const timeStr = formatTime(job.start);
+            let actionBtn = '';
+
+            if (job.status === 'Completed') {
+                const actualEnd = job.actualEndTime ? formatTime(job.actualEndTime.toDate()) : 'Done';
+                actionBtn = `<div class="status-badge completed">🏁 Ended: ${actualEnd}</div>`;
+            } else if (job.status === 'Started') {
+                const actualStart = job.actualStartTime ? formatTime(job.actualStartTime.toDate()) : '';
+                actionBtn = `<div style="font-size:0.75rem; color:green; margin-bottom:4px;">Started: ${actualStart}</div><button class="btn-clockout" onclick="attemptClockOut('${job.id}', '${job.accountId}')">🛑 Clock Out</button>`;
+            } else {
+                actionBtn = `<button class="btn-checkin" onclick="attemptCheckIn('${job.id}', '${job.accountId}')">📍 Check In</button>`;
+            }
+
+            const card = document.createElement('div');
+            card.className = 'shift-card';
+            card.innerHTML = `
+                <div class="shift-time">${timeStr}</div>
+                <div class="shift-loc">${job.accountName}</div>
+                ${actionBtn}
+            `;
+            col.appendChild(card);
+        });
+    }
+
+    grid.appendChild(col);
+}
+
+function renderMonthView(jobs) {
+    const grid = document.getElementById('schedulerGrid');
+    if(!grid) return;
+    grid.innerHTML = '';
+    grid.style.display = 'grid';
+    grid.style.gridTemplateColumns = 'repeat(7, 1fr)';
+    grid.style.gap = '1px';
+    grid.style.background = '#e5e7eb';
+    grid.style.overflowX = 'hidden'; // Don't scroll horizontally
+
+    const year = currentStartDate.getFullYear();
+    const month = currentStartDate.getMonth();
+    const firstDay = new Date(year, month, 1);
+
+    // Day labels
+    const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    dayLabels.forEach(label => {
+        const header = document.createElement('div');
+        header.className = 'cal-header';
+        header.textContent = label;
+        // Apply month header background style
+        header.style.background = '#f9fafb';
+        grid.appendChild(header);
+    });
+
+    let iterator = new Date(firstDay);
+    iterator.setDate(iterator.getDate() - iterator.getDay());
+
+    for(let i=0; i<42; i++) {
+        const day = document.createElement('div');
+        const isCurrMonth = iterator.getMonth() === month;
+        day.className = `month-day ${isCurrMonth ? '' : 'other-month'}`;
+        day.style.minHeight = '100px';
+        day.style.background = isCurrMonth ? 'white' : '#f9fafb';
+        day.style.color = isCurrMonth ? '#1f2937' : '#ccc';
+        day.style.padding = '8px';
+
+        day.innerHTML = `<div style="font-weight: 700; font-size: 0.9rem; margin-bottom: 4px;">${iterator.getDate()}</div>`;
+
+        const dayJobs = jobs.filter(j => isSameDay(j.start, iterator));
+
+        if (dayJobs.length > 0) {
+            dayJobs.forEach(job => {
+                const event = document.createElement('div');
+                event.style.fontSize = '0.75rem';
+                event.style.padding = '2px 4px';
+                event.style.borderRadius = '3px';
+                event.style.marginTop = '2px';
+                event.style.whiteSpace = 'nowrap';
+                event.style.overflow = 'hidden';
+                event.style.textOverflow = 'ellipsis';
+                event.textContent = `${formatTime(job.start)} ${job.accountName}`;
+
+                if (job.status === 'Completed') {
+                    event.style.background = '#dcfce7';
+                    event.style.color = '#065f46';
+                } else if (job.status === 'Started') {
+                    event.style.background = '#eff6ff';
+                    event.style.color = '#1e40af';
+                } else {
+                    event.style.background = '#f3f4f6';
+                    event.style.color = '#6b7280';
+                }
+                day.appendChild(event);
+            });
+        }
+
+        grid.appendChild(day);
+
+        iterator.setDate(iterator.getDate() + 1);
+        // Stop after loading a full week past the current month to complete the grid
+        if (iterator > firstDay && iterator.getDay() === 0 && iterator.getMonth() !== month) break;
+    }
+}
+
+
+// --- NAVIGATION FUNCTIONS (Exposed to HTML) ---
+
+window.changeView = function(view) {
+    currentView = view;
+    currentStartDate = normalizeDate(currentStartDate, currentView);
+    sessionStorage.setItem('empPortalView', currentView);
+    sessionStorage.setItem('empPortalDate', currentStartDate.toISOString());
+    location.reload();
+};
+
+window.changePeriod = function(direction) {
+    if (currentView === 'day') {
+        currentStartDate.setDate(currentStartDate.getDate() + direction);
+    } else if (currentView === 'week') {
+        currentStartDate.setDate(currentStartDate.getDate() + (direction * 7));
+    } else if (currentView === 'month') {
+        currentStartDate.setMonth(currentStartDate.getMonth() + direction);
+    }
+    // No need to call normalizeDate again here, as changePeriod only advances the date.
+    // The date will be normalized when it is first loaded.
+    sessionStorage.setItem('empPortalDate', currentStartDate.toISOString());
+    location.reload();
+};
+
+
+// --- GEOFENCING & ACTIONS (Original Code) ---
 
 function runGeofencedAction(jobId, accountId, actionType) {
     const btn = event.target;
@@ -235,8 +455,3 @@ function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
 function deg2rad(deg) {
   return deg * (Math.PI/180)
 }
-
-window.changeWeek = function(offset) {
-    currentWeekStart.setDate(currentWeekStart.getDate() + (offset * 7));
-    location.reload();
-};

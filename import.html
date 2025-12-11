@@ -23,9 +23,11 @@
         .log-warn { color: #f59e0b; }
         .log-error { color: #ef4444; font-weight: bold; }
 
-        .danger-zone { margin-top: 30px; padding-top: 20px; border-top: 2px solid #fee2e2; }
+        .danger-zone { margin-top: 30px; padding-top: 20px; border-top: 2px solid #fee2e2; display: flex; gap: 10px; }
         .btn-danger { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
         .btn-danger:hover { background: #ef4444; color: white; }
+        .btn-info { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+        .btn-info:hover { background: #0ea5e9; color: white; }
 
         #authWarning { display:none; background:#fee2e2; color:#991b1b; padding:15px; border-radius:8px; text-align:center; font-weight:bold; margin-bottom:20px; border:1px solid #f87171; }
     </style>
@@ -44,8 +46,8 @@
     <div id="appContent" style="opacity:0.5; pointer-events:none;">
         <label style="font-weight:bold; color:#374151;">Select Import Type:</label>
         <select id="importType">
-            <option value="history">2. Account History/Book (Book.csv)</option>
             <option value="master">1. Master Client List (clients.csv)</option>
+            <option value="history">2. Account History/Book (Book.csv)</option>
         </select>
 
         <div class="checkbox-wrapper">
@@ -63,7 +65,7 @@
         <div id="log" class="log-window"></div>
 
         <div class="danger-zone">
-            <h4 style="margin: 0 0 10px 0; color: #b91c1c;">Danger Zone</h4>
+            <button onclick="checkRecordCount()" class="btn-info">📊 Check Record Count</button>
             <button onclick="wipeMasterList()" class="btn-danger">🗑️ Delete All Master Data</button>
         </div>
     </div>
@@ -134,7 +136,7 @@
         Papa.parse(file, {
             header: true,
             skipEmptyLines: true,
-            transformHeader: h => h.trim(), // Remove whitespace from headers automatically
+            transformHeader: h => h.trim(),
             complete: function(results) {
                 if(mode === 'master') uploadMasterList(results.data, results.meta.fields);
                 else uploadHistoryBook(results.data, results.meta.fields);
@@ -151,6 +153,10 @@
         log(`Starting Master List Upload...`);
         log(`Headers Found: [${headers.join(', ')}]`);
 
+        const hasFranCol = headers.some(h => ['Fran ID', 'FranID', 'Franchisee', 'Owner'].includes(h));
+        if(!hasFranCol) log("WARNING: No 'Fran ID' column found in CSV. Auto-linking will not work.", 'warn');
+
+        const doGeo = document.getElementById('geoEnabled').checked; // Check geocoding toggle
         const batchSize = 400;
         let batch = db.batch();
         let count = 0;
@@ -164,20 +170,56 @@
 
             let cleanRev = row['Recur Amt'] ? parseFloat(row['Recur Amt'].replace(/[$,]/g, '')) : 0;
             let cleanDate = formatDate(row['Start Date']);
+            const franId = row['Fran ID'] || row['FranID'] || row['Franchisee'] || '';
+
+            // --- NEW: Better Address Construction with Commas ---
+            const addr = row['Site Address'] || '';
+            const city = row['Site City'] || '';
+            const state = row['Site State'] || '';
+            const zip = row['Site Zip'] || '';
+
+            let fullAddress = addr;
+            if(city) fullAddress += `, ${city}`;
+            if(state) fullAddress += `, ${state}`;
+            if(zip) fullAddress += ` ${zip}`;
+            fullAddress = fullAddress.trim();
+
+            // --- NEW: Geocoding Logic for Master List ---
+            let lat = null;
+            let lng = null;
+            if (doGeo && fullAddress.length > 10) {
+                await sleep(650); // Pause to respect API limits
+                const coords = await getCoordinates(fullAddress);
+                if (coords) {
+                    lat = coords.lat;
+                    lng = coords.lng;
+                    log(`📍 Pin found: ${pid} (${city})`);
+                } else {
+                    log(`⚠️ No pin: ${pid}`, 'warn');
+                }
+            }
 
             const docRef = db.collection('master_client_list').doc(String(pid).trim());
 
-            batch.set(docRef, {
+            const clientData = {
                 pid: pid,
                 name: row['Service Location Name'] || '',
-                address: `${row['Site Address']||''} ${row['Site City']||''} ${row['Site State']||''} ${row['Site Zip']||''}`.trim(),
+                address: fullAddress, // Save the comma-formatted address
                 revenue: cleanRev,
                 startDate: cleanDate,
                 contactName: row['Contact Name'] || '',
                 contactPhone: row['Contact Phone'] || '',
                 contactEmail: row['Contact Email'] || '',
+                franId: franId.trim(),
                 lastImportedAt: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
+            };
+
+            if (lat && lng) {
+                clientData.lat = lat;
+                clientData.lng = lng;
+            }
+
+            batch.set(docRef, clientData, { merge: true });
 
             count++;
             if (count % batchSize === 0) {
@@ -192,7 +234,7 @@
         document.getElementById('btnUpload').disabled = false;
         document.getElementById('btnUpload').classList.remove('disabled-state');
         document.getElementById('btnUpload').innerText = "Start Import";
-        alert("Master List Updated!");
+        alert("Master List Updated! Now you can run the Franchisee Import.");
     }
 
     async function uploadHistoryBook(data, headers) {
@@ -231,18 +273,12 @@
             } catch(e) {}
 
             const finalName = masterData.name || `Client ${clientId}`;
+            // Fallback to master data address if available (it has commas now!)
             const finalAddr = masterData.address || 'Address Lookup Failed';
 
             // --- SMART STATUS LOGIC ---
-            // Identify if "One Time" job
             const isOneTime = type.toLowerCase().includes('1x job');
-
-            // Identify if Inactive (Transfer, Inactive status, or 1x Job)
-            let isInactive = (
-                type === 'Inactive' ||
-                type.startsWith('Transfer') ||
-                isOneTime
-            );
+            let isInactive = (type === 'Inactive' || type.startsWith('Transfer') || isOneTime);
 
             let endDate = null;
             let inactiveReason = null;
@@ -257,31 +293,24 @@
                     inactiveReason = 'Past Service';
                 }
 
-                // Date Priority Logic
                 let endRaw = row['Transfer Date'];
                 if (!endRaw || endRaw.trim() === '') endRaw = row['Last Clean'];
                 if (!endRaw || endRaw.trim() === '') endRaw = row['Last Responsible'];
-
                 if (endRaw) endDate = formatDate(endRaw);
-
-                if (!endDate) {
-                    endDate = new Date().toISOString().split('T')[0];
-                }
+                if (!endDate) endDate = new Date().toISOString().split('T')[0];
             }
-            // -------------------------------
 
             const startDate = formatDate(row['Start Date']);
-
-            // Safe parsing for Revenue (Handles commas in quotes)
             let revenue = 0;
             if(row['Recur Amt']) {
                  revenue = parseFloat(row['Recur Amt'].replace(/[$,]/g, ''));
             }
 
-            // Geocoding
-            let lat = null;
-            let lng = null;
-            if (doGeo && finalAddr && finalAddr.length > 5) {
+            // Geocoding (Only if master data didn't have it)
+            let lat = masterData.lat || null;
+            let lng = masterData.lng || null;
+
+            if (doGeo && !lat && finalAddr && finalAddr.length > 5) {
                 await sleep(600);
                 const coords = await getCoordinates(finalAddr);
                 if (coords) {
@@ -333,22 +362,27 @@
         document.getElementById('btnUpload').disabled = false;
         document.getElementById('btnUpload').classList.remove('disabled-state');
         document.getElementById('btnUpload').innerText = "Start Import";
-
         alert(`Import Complete! Processed ${created} records.`);
     }
 
     function formatDate(dateStr) {
         if(!dateStr) return '';
-        // Handle various Excel date formats (10/12/25, 10-12-2025)
         const parts = dateStr.trim().replace(/\//g, '-').split('-');
         if(parts.length === 3) {
             let y = parts[2];
-            // Fix 2-digit years
             if(y.length === 2) y = '20' + y;
-            // Ensure proper YYYY-MM-DD
             return `${y}-${parts[0].padStart(2,'0')}-${parts[1].padStart(2,'0')}`;
         }
         return '';
+    }
+
+    async function checkRecordCount() {
+        document.getElementById('status').innerText = "Checking...";
+        try {
+            const snap = await db.collection('master_client_list').get();
+            alert(`Master List contains: ${snap.size} records.`);
+            document.getElementById('status').innerText = `Count: ${snap.size} records`;
+        } catch(e) { alert("Error checking: " + e.message); }
     }
 
     async function wipeMasterList() {
@@ -356,15 +390,33 @@
         const confirmation = prompt("Type DELETE to confirm:");
         if (confirmation !== "DELETE") return;
 
-        document.getElementById('status').innerText = "DELETING...";
+        document.getElementById('status').innerText = "DELETING... Please wait.";
         try {
             const collectionRef = db.collection('master_client_list');
             const snapshot = await collectionRef.get();
-            const batch = db.batch();
-            snapshot.docs.forEach((doc) => batch.delete(doc.ref));
-            await batch.commit();
+
+            if (snapshot.size === 0) {
+                document.getElementById('status').innerText = "Already Empty.";
+                return alert("List is already empty.");
+            }
+
+            let batch = db.batch();
+            let count = 0;
+
+            for (const doc of snapshot.docs) {
+                batch.delete(doc.ref);
+                count++;
+                if (count >= 400) {
+                    await batch.commit();
+                    batch = db.batch();
+                    count = 0;
+                }
+            }
+
+            if (count > 0) await batch.commit();
+
             alert("Master List Wiped.");
-            document.getElementById('status').innerText = "Database Empty";
+            document.getElementById('status').innerText = "Database Empty (0 Records)";
         } catch (e) { alert("Error: " + e.message); }
     }
 </script>

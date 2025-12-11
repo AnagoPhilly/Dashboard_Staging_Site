@@ -592,12 +592,77 @@ input:checked + .slider:before { transform: translateX(22px); }
 
 /* Mobile Response */
 @media (max-width: 768px) {
-    /* Main Layout */
-    .sidebar { width: 100%; height: auto; flex-direction: row; justify-content: space-between; padding: 0.5rem 1rem; }
-    .nav { display: none; }
-    .main-content { padding: 1rem; }
-    .app-container { flex-direction: column; }
+    /* 1. MOBILE NAVIGATION & LAYOUT */
+
+    /* Transform Sidebar into Top Nav */
+    .sidebar {
+        width: 100%;
+        height: auto;
+        flex-direction: row;
+        overflow-x: auto; /* Allows horizontal scrolling of nav items */
+        overflow-y: hidden;
+        justify-content: flex-start; /* Start items from the left */
+        padding: 0; /* Remove vertical padding */
+        border-bottom: 1px solid #374151;
+        position: fixed; /* Fix to the top */
+        top: 0;
+        left: 0; /* Ensure it spans the whole width */
+        z-index: 50;
+        white-space: nowrap; /* Prevent nav items from wrapping */
+    }
+
+    .sidebar-header {
+        display: none; /* Hide the title and user info on small screens */
+    }
+
+    #adminControls {
+        display: none !important; /* Hide admin controls on mobile nav */
+    }
+
+    .nav {
+        flex: none; /* Allow nav container to shrink/scroll */
+        padding: 0;
+        display: flex; /* Display items horizontally */
+    }
+
+    .nav-item {
+        padding: 0.8rem 1rem; /* Adjust padding for horizontal tabs */
+        flex-shrink: 0; /* Important: prevents items from shrinking */
+    }
+
+    .logout {
+        border-top: none;
+        margin-left: auto; /* Push logout to the far right */
+        border-left: 1px solid #374151; /* Add separator */
+    }
+
+    .main-content {
+        padding: 1rem;
+        margin-top: 55px; /* Add margin to account for the fixed top nav height */
+        height: calc(100vh - 55px);
+        overflow-y: auto;
+    }
+
+    .app-container {
+        flex-direction: column;
+        height: 100vh;
+    }
     .login-box { padding: 1.5rem; }
+
+    /* 2. DASHBOARD KPI LAYOUT (Fixes the issue from the image) */
+    .kpi-scorecard-dashboard {
+        grid-template-columns: 1fr 1fr 1fr; /* Force 3 columns on mobile */
+        gap: 10px; /* Reduce gap */
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+
+    .kpi-dashboard-item {
+        flex-shrink: 0;
+        width: 150px; /* Give a fixed width so they line up horizontally */
+        display: inline-block; /* Use inline-block for horizontal alignment in the grid container */
+    }
+
 
     /* Dashboard Split */
     .dashboard-split-container {

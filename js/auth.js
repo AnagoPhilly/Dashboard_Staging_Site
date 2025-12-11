@@ -31,6 +31,7 @@ auth.onAuthStateChanged(async user => {
   const appLoading = document.getElementById('appLoading');
 
   if (user) {
+    // Start with the real authenticated user
     window.currentUser = user;
     console.log("Auth: User detected:", user.email);
 
@@ -38,46 +39,94 @@ auth.onAuthStateChanged(async user => {
     const nameDisplay = document.getElementById('userNameDisplay');
     const emailDisplay = document.getElementById('userEmailDisplay');
 
+    // -----------------------------------------------------------------
+    // NEW IMPERSONATION LOGIC FOR ADMINS
+    // -----------------------------------------------------------------
+    const urlParams = new URLSearchParams(window.location.search);
+    const viewAsEmail = urlParams.get('viewAs');
+    const isImpersonating = viewAsEmail && user.email.toLowerCase() === 'nate@anagophilly.com';
+
+    if (isImpersonating) {
+        let impersonatedName = viewAsEmail;
+
+        try {
+            // Step 1: Find the target user document to get their real UID and Name
+            const ownerSnap = await db.collection('users').where('email', '==', viewAsEmail).limit(1).get();
+
+            if (!ownerSnap.empty) {
+                const targetDoc = ownerSnap.docs[0];
+                const ownerData = targetDoc.data();
+
+                if (ownerData.name) impersonatedName = ownerData.name;
+
+                // CRITICAL FIX: We must override the UID so profile/accounts load the TARGET'S data, not the admin's.
+                // We create a proxy object because Firebase User properties are often read-only.
+                window.currentUser = {
+                    uid: targetDoc.id,       // Use the Franchisee's UID
+                    email: viewAsEmail,      // Use the Franchisee's Email
+                    originalAdminEmail: user.email, // Keep track of real admin
+                    // Proxy other methods if needed, though most app logic just needs uid/email
+                    getIdToken: () => user.getIdToken()
+                };
+
+                console.log(`Auth: Impersonation Success. Swapped UID to ${targetDoc.id}`);
+            }
+        } catch (e) {
+             console.warn("Impersonation Lookup Error:", e);
+        }
+
+        console.log(`Auth: Admin Impersonation active. Viewing as: ${impersonatedName}`);
+
+        // Update Sidebar Displays to show the *impersonated name*
+        if(nameDisplay) nameDisplay.textContent = `Viewing: ${impersonatedName}`;
+
+        // Show the original admin email in the smaller space
+        if(emailDisplay) emailDisplay.textContent = user.email;
+    }
+    // -----------------------------------------------------------------
+
     // 1. Check if they are an EMPLOYEE
-    const empSnap = await db.collection('employees').where('email', '==', user.email).get();
+    // (Note: We use the *original* user email if not impersonating, or the impersonated one if we are.
+    // But typically God Mode is only for Owners, so this check usually falls through for Admins)
+    const checkEmail = window.currentUser.email;
+    const empSnap = await db.collection('employees').where('email', '==', checkEmail).get();
 
     if (!empSnap.empty) {
         // --- IT IS AN EMPLOYEE ---
         console.log("Auth: User is an Employee.");
 
-        // Update Sidebar (if visible)
         if (nameDisplay && empSnap.docs[0].data().name) {
             nameDisplay.textContent = `Team Member: ${empSnap.docs[0].data().name.split(' ')[0]}`;
         }
-        if (emailDisplay) emailDisplay.textContent = user.email;
+        if (emailDisplay) emailDisplay.textContent = checkEmail;
 
-        // If they are on the Owner Dashboard (index.html), kick them to the Employee Portal
         if (!isEmployeePage) {
             window.location.href = 'employee.html';
             return;
         }
-
-        return; // Stop here if employee
+        return;
     }
 
     // 2. If not an employee, check if they are an OWNER
-    console.log("Auth: Checking Firestore 'users' collection for UID:", user.uid); // <--- DEBUGGING HELP
-    
-    const ownerDoc = await db.collection('users').doc(user.uid).get();
+    // Use the (potentially impersonated) UID
+    console.log("Auth: Checking Firestore 'users' collection for UID:", window.currentUser.uid);
+
+    const ownerDoc = await db.collection('users').doc(window.currentUser.uid).get();
 
     if (ownerDoc.exists && ownerDoc.data().role === 'owner') {
         // --- IT IS AN OWNER ---
         console.log("Auth: User is an Owner.");
 
         const userData = ownerDoc.data();
-        const name = userData.name || user.email;
-        const firstName = name.split(' ')[0];
+        let name = userData.name || window.currentUser.email;
 
-        // Update Sidebar Displays
-        if(nameDisplay) nameDisplay.textContent = `Welcome, ${firstName}!`;
-        if(emailDisplay) emailDisplay.textContent = user.email;
+        // If not impersonating, set name/email as normal
+        if (!isImpersonating) {
+            const firstName = name.split(' ')[0];
+            if(nameDisplay) nameDisplay.textContent = `Welcome, ${firstName}!`;
+            if(emailDisplay) emailDisplay.textContent = window.currentUser.email;
+        }
 
-        // If they are on the Employee Portal, kick them back to Main Dash
         if (isEmployeePage) {
             window.location.href = 'index.html';
             return;
@@ -88,13 +137,22 @@ auth.onAuthStateChanged(async user => {
         if (appLoading) appLoading.style.display = 'none';
         if (app) {
             app.style.display = 'flex';
-            // Critical: Load Map if on Dashboard
             if (typeof loadMap === 'function') loadMap();
+
+            // --- ADDED REVERT LINK TO DROPDOWN ---
+            if (isImpersonating) {
+                // Wait briefly for DOM to be sure
+                setTimeout(() => {
+                    const adminSelect = document.getElementById('adminOwnerSelect');
+                    // We don't need to do anything here since we switched to a BUTTON in main.js
+                    // But we keep this check just in case logic overlaps.
+                }, 500);
+            }
         }
     } else {
         // --- UNKNOWN USER (Security Risk) ---
         console.warn("Auth: User is authenticated but has no role. Signing out.");
-        alert(`Access Denied: Account not authorized.\n\nMissing Firestore Document for UID: ${user.uid}`);
+        alert(`Access Denied: Account not authorized.\n\nMissing Firestore Document for UID: ${window.currentUser.uid}`);
         auth.signOut();
     }
 
@@ -102,13 +160,11 @@ auth.onAuthStateChanged(async user => {
     // --- NO USER LOGGED IN ---
     console.log("Auth: No user.");
 
-    // If trying to access the restricted Employee page, kick to login
     if (isEmployeePage) {
         window.location.href = 'index.html';
         return;
     }
 
-    // Show Login Screen
     if (loginPage) loginPage.style.display = 'flex';
     if (app) app.style.display = 'none';
     if (appLoading) appLoading.style.display = 'none';
@@ -121,7 +177,6 @@ window.login = () => {
   const password = document.getElementById('password')?.value;
   if (!email || !password) return alert('Enter email & password');
 
-  // Show loading state on button
   const btn = document.querySelector('button[onclick="login()"]');
   if(btn) btn.textContent = "Verifying...";
 
@@ -134,7 +189,6 @@ window.login = () => {
 // --- LOGOUT FUNCTION ---
 window.logout = () => {
   auth.signOut().then(() => {
-    // FORCE RELOAD: Clears memory/cache to prevent data leaks between Owner/Employee sessions
     window.location.href = 'index.html';
   });
 };
