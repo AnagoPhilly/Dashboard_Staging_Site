@@ -44,7 +44,8 @@ auth.onAuthStateChanged(async user => {
     // -----------------------------------------------------------------
     const urlParams = new URLSearchParams(window.location.search);
     const viewAsEmail = urlParams.get('viewAs');
-    const isImpersonating = viewAsEmail && user.email.toLowerCase() === 'nate@anagophilly.com';
+    const ADMIN_EMAIL = 'nate@anagophilly.com';
+    const isImpersonating = viewAsEmail && user.email.toLowerCase() === ADMIN_EMAIL;
 
     if (isImpersonating) {
         let impersonatedName = viewAsEmail;
@@ -86,8 +87,6 @@ auth.onAuthStateChanged(async user => {
     // -----------------------------------------------------------------
 
     // 1. Check if they are an EMPLOYEE
-    // (Note: We use the *original* user email if not impersonating, or the impersonated one if we are.
-    // But typically God Mode is only for Owners, so this check usually falls through for Admins)
     const checkEmail = window.currentUser.email;
     const empSnap = await db.collection('employees').where('email', '==', checkEmail).get();
 
@@ -108,7 +107,6 @@ auth.onAuthStateChanged(async user => {
     }
 
     // 2. If not an employee, check if they are an OWNER
-    // Use the (potentially impersonated) UID
     console.log("Auth: Checking Firestore 'users' collection for UID:", window.currentUser.uid);
 
     const ownerDoc = await db.collection('users').doc(window.currentUser.uid).get();
@@ -139,15 +137,38 @@ auth.onAuthStateChanged(async user => {
             app.style.display = 'flex';
             if (typeof loadMap === 'function') loadMap();
 
-            // --- ADDED REVERT LINK TO DROPDOWN ---
-            if (isImpersonating) {
-                // Wait briefly for DOM to be sure
-                setTimeout(() => {
-                    const adminSelect = document.getElementById('adminOwnerSelect');
-                    // We don't need to do anything here since we switched to a BUTTON in main.js
-                    // But we keep this check just in case logic overlaps.
-                }, 500);
+            // --- NEW: ENSURE ADMIN BUTTON IS RENDERED IMMEDIATELY ---
+            if (user.email.toLowerCase() === ADMIN_EMAIL) {
+                const adminDiv = document.getElementById('adminControls');
+                const statusLabel = document.getElementById('adminModeStatusLabel');
+                const toggleButton = document.getElementById('godModeToggleButton');
+                const isOwnerDashboard = !window.location.pathname.includes('admin.html');
+
+                if (adminDiv) adminDiv.style.display = 'block';
+
+                if (isOwnerDashboard) {
+                    if (isImpersonating) {
+                        if (statusLabel) statusLabel.textContent = `STATUS: Viewing ${window.currentUser.email}`;
+                        if (toggleButton) {
+                            toggleButton.textContent = '🔥 Revert to God Mode';
+                            toggleButton.style.backgroundColor = '#f59e0b';
+                        }
+                    } else {
+                        if (statusLabel) statusLabel.textContent = 'STATUS: Dashboard View';
+                        if (toggleButton) {
+                            toggleButton.textContent = '🔥 Go to God Mode';
+                            toggleButton.style.backgroundColor = '#ef4444';
+                        }
+                    }
+                } else { // On admin.html
+                    if (statusLabel) statusLabel.textContent = 'STATUS: God Mode Active';
+                    if (toggleButton) {
+                        toggleButton.textContent = '🔙 Exit to Dashboard';
+                        toggleButton.style.backgroundColor = '#64748b';
+                    }
+                }
             }
+            // --- END NEW ADMIN BUTTON LOGIC ---
         }
     } else {
         // --- UNKNOWN USER (Security Risk) ---

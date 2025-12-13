@@ -19,7 +19,7 @@
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
     <script type="text/javascript">
         (function(){
-           emailjs.init("dIbzeCVC1Eg37asrY");
+            emailjs.init("dIbzeCVC1Eg37asrY");
         })();
     </script>
 
@@ -29,6 +29,22 @@
         function gtag(){dataLayer.push(arguments);}
         gtag('js', new Date());
         gtag('config', 'G-HBLVYZSS3M');
+    </script>
+
+    <script>
+        window.showToast = function(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast-notification ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 50);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 500);
+            }, 3000); // Fades away after 3 seconds
+        };
     </script>
     <style>
         .vh {
@@ -615,14 +631,36 @@
             <label for="accountName">Account Name (Location)</label>
             <input type="text" id="accountName" placeholder="e.g. Downtown Office Park" />
         </div>
+
         <div class="input-wrapper" style="margin-bottom:10px;">
-            <label for="accountAddress">Full Address</label>
-            <input type="text" id="accountAddress" placeholder="123 Main St..." />
+            <label for="accountStreet">Street Address</label>
+            <input type="text" id="accountStreet" placeholder="e.g. 123 Main St" />
         </div>
+        <div class="split-inputs-container">
+            <div class="input-wrapper">
+                <label for="accountCity">City</label>
+                <input type="text" id="accountCity" placeholder="City" />
+            </div>
+            <div class="input-wrapper" style="flex: 0.5;">
+                <label for="accountState">State</label>
+                <input type="text" id="accountState" value="PA" />
+            </div>
+            <div class="input-wrapper" style="flex: 0.8;">
+                <label for="accountZip">Zip Code</label>
+                <input type="text" id="accountZip" placeholder="19000" />
+            </div>
+        </div>
+
         <div class="split-inputs-container">
             <div class="input-wrapper"><label for="accountRevenue">Monthly Revenue ($)</label><input type="number" id="accountRevenue" placeholder="0.00" /></div>
             <div class="input-wrapper"><label for="accountAlarm">Alarm Code</label><input type="text" id="accountAlarm" placeholder="e.g. 1234#" /></div>
         </div>
+
+        <div class="input-wrapper" style="margin-bottom: 10px;">
+            <label for="accountGeofence">Geofence Radius (meters)</label>
+            <input type="number" id="accountGeofence" placeholder="200" value="200" />
+        </div>
+
         <div class="split-inputs-container">
             <div class="input-wrapper"><label for="accountStartDate">Start Date</label><input type="date" id="accountStartDate" /></div>
             <div class="input-wrapper"><label for="accountEndDate">End Date (Optional)</label><input type="date" id="accountEndDate" /><small style="color:#666; font-size:0.7rem;">Leave blank if active</small></div>
@@ -647,11 +685,36 @@
         <h2>Edit Account</h2>
         <input type="hidden" id="editAccountId" />
         <div class="input-wrapper" style="margin-bottom:10px;"><label for="editAccountName">Account Name</label><input type="text" id="editAccountName" /></div>
-        <div class="input-wrapper" style="margin-bottom:10px;"><label for="editAccountAddress">Full Address</label><input type="text" id="editAccountAddress" /></div>
+
+        <div class="input-wrapper" style="margin-bottom:10px;">
+            <label for="editAccountStreet">Street Address</label>
+            <input type="text" id="editAccountStreet" placeholder="e.g. 123 Main St" />
+        </div>
+        <div class="split-inputs-container">
+            <div class="input-wrapper">
+                <label for="editAccountCity">City</label>
+                <input type="text" id="editAccountCity" />
+            </div>
+            <div class="input-wrapper" style="flex: 0.5;">
+                <label for="editAccountState">State</label>
+                <input type="text" id="editAccountState" />
+            </div>
+            <div class="input-wrapper" style="flex: 0.8;">
+                <label for="editAccountZip">Zip Code</label>
+                <input type="text" id="editAccountZip" />
+            </div>
+        </div>
+
         <div class="split-inputs-container">
             <div class="input-wrapper"><label for="editAccountRevenue">Monthly Revenue ($)</label><input type="number" id="editAccountRevenue" /></div>
             <div class="input-wrapper"><label for="editAccountAlarm">Alarm Code</label><input type="text" id="editAccountAlarm" /></div>
         </div>
+
+        <div class="input-wrapper" style="margin-bottom: 10px;">
+            <label for="editAccountGeofence">Geofence Radius (meters)</label>
+            <input type="number" id="editAccountGeofence" placeholder="200" />
+        </div>
+
         <div class="split-inputs-container">
             <div class="input-wrapper"><label for="editAccountStartDate">Start Date</label><input type="date" id="editAccountStartDate" /></div>
             <div class="input-wrapper"><label for="editAccountEndDate">End Date</label><input type="date" id="editAccountEndDate" /><small style="color:#666; font-size:0.7rem;">Set date to mark Inactive</small></div>
@@ -663,6 +726,14 @@
                 <div class="input-wrapper"><label for="editContactPhone">Phone</label><input type="text" id="editContactPhone" /></div>
                 <div class="input-wrapper"><label for="editContactEmail">Email</label><input type="email" id="editContactEmail" /></div>
             </div>
+        </div>
+
+        <div style="margin-top: 15px;">
+            <label style="font-size:0.85rem; font-weight:700; color:#374151;">📍 Location Pin</label>
+            <div id="editAccountMap" style="height: 250px; width: 100%; border-radius: 8px; border: 2px solid #e5e7eb; margin-top: 5px;"></div>
+            <small id="pinHelpText" style="color:#666; font-size:0.75rem; display:block; margin-top:5px;">
+                Pin location is locked. Contact Home Office to adjust.
+            </small>
         </div>
         <div class="modal-buttons">
             <button onclick="saveEditedAccount(event)">Save Changes</button>

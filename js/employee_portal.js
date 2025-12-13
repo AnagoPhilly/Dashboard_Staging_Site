@@ -12,9 +12,7 @@ function normalizeDate(date, view) {
     const d = new Date(date);
     d.setHours(0, 0, 0, 0);
     if (view === 'week') {
-        // Calculate the Monday of the current week (or Sunday if using day === 0)
         const day = d.getDay();
-        // 0=Sun, 1=Mon... If day is 0 (Sunday), diff is -6 (back to Monday of prior week)
         const diff = d.getDate() - day + (day === 0 ? -6 : 1);
         d.setDate(diff);
     } else if (view === 'month') {
@@ -30,11 +28,10 @@ currentStartDate = normalizeDate(currentStartDate, currentView);
 sessionStorage.setItem('empPortalView', currentView);
 sessionStorage.setItem('empPortalDate', currentStartDate.toISOString());
 
-const MAX_DISTANCE_KM = 0.5; // 500 meters allow radius
+// NOTE: MAX_DISTANCE_KM removed in favor of dynamic per-account radius
 
 auth.onAuthStateChanged(async user => {
     if (user) {
-        // 1. Verify Identity in Employee Database
         const empSnap = await db.collection('employees').where('email', '==', user.email).get();
 
         if (empSnap.empty) {
@@ -46,17 +43,14 @@ auth.onAuthStateChanged(async user => {
         const employee = empSnap.docs[0].data();
         employee.id = empSnap.docs[0].id;
 
-        // Update UI
         document.getElementById('appLoading').style.display = 'none';
         document.getElementById('app').style.display = 'flex';
 
         const welcomeEl = document.getElementById('welcomeMsg');
         if(welcomeEl) welcomeEl.textContent = `Hi, ${employee.name.split(' ')[0]}`;
 
-        // 2. Load My Shifts
         loadMyShifts(employee.id);
     } else {
-        // If not logged in, go back to main index
         window.location.href = 'index.html';
     }
 });
@@ -66,15 +60,12 @@ async function loadMyShifts(employeeId) {
     const hoursDisplay = document.getElementById('totalHoursDisplay');
     const dateEl = document.getElementById('weekRangeDisplay');
 
-    // Clear the grid before loading
     container.innerHTML = '';
 
-    // Update view buttons
     document.querySelectorAll('.btn-view-toggle').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.view === currentView);
     });
 
-    // Set date header based on current view
     if(dateEl) {
         if (currentView === 'month') {
              dateEl.textContent = currentStartDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
@@ -88,7 +79,6 @@ async function loadMyShifts(employeeId) {
     }
 
     try {
-        // --- 1. Fetch ALL jobs for rendering ---
         const allSnap = await db.collection('jobs')
             .where('employeeId', '==', employeeId)
             .get();
@@ -102,17 +92,12 @@ async function loadMyShifts(employeeId) {
             j.start = j.startTime.toDate();
             j.end = j.endTime.toDate();
 
-            // Calculate total hours only for completed jobs within the current period
             if (j.status === 'Completed' && j.actualStartTime && j.actualEndTime) {
                  const jobEnd = j.actualEndTime.toDate();
-
-                 // Find the end date of the current display period (for hour calculation)
                  let periodEnd = new Date(currentStartDate);
                  if (currentView === 'week') periodEnd.setDate(periodEnd.getDate() + 6);
                  else if (currentView === 'month') periodEnd.setMonth(periodEnd.getMonth() + 1);
 
-                 // Simplified calculation: If job ended within period, add hours.
-                 // Note: This total is cumulative and not strictly based on the visible schedule for simplicity.
                  if (jobEnd >= normalizeDate(currentStartDate, currentView) && jobEnd <= periodEnd) {
                     const diffMs = jobEnd - j.actualStartTime.toDate();
                     const hrs = diffMs / (1000 * 60 * 60);
@@ -124,7 +109,6 @@ async function loadMyShifts(employeeId) {
 
         if(hoursDisplay) hoursDisplay.textContent = totalHours.toFixed(2);
 
-        // --- 2. RENDER BASED ON VIEW ---
         if (currentView === 'month') {
             renderMonthView(jobsForRender);
         } else if (currentView === 'day') {
@@ -155,8 +139,8 @@ function formatTime(date) {
 function renderWeekView(jobs) {
     const grid = document.getElementById('schedulerGrid');
     if(!grid) return;
-    grid.style.display = 'flex'; // Ensure week view uses flex for horizontal scrolling
-    grid.style.gridTemplateColumns = 'none'; // Clear month view grid
+    grid.style.display = 'flex';
+    grid.style.gridTemplateColumns = 'none';
 
     for (let i = 0; i < 7; i++) {
         const colDate = new Date(currentStartDate);
@@ -167,30 +151,25 @@ function renderWeekView(jobs) {
         col.className = 'calendar-col';
         col.innerHTML = `<div class="cal-header">${dateString}</div>`;
 
-        // Only show jobs that fall on this specific day
         const dayJobs = jobs.filter(j => isSameDay(j.start, colDate));
 
         dayJobs.sort((a, b) => a.start - b.start);
 
         dayJobs.forEach(job => {
             const timeStr = formatTime(job.start);
-
-            // Determine Button State
             let actionBtn = '';
 
             if (job.status === 'Completed') {
                 const actualEnd = job.actualEndTime ? formatTime(job.actualEndTime.toDate()) : 'Done';
-                actionBtn = `<div class="status-badge completed">🏁 Ended: ${actualEnd}</div>`;
-
+                actionBtn = `<div class="status-badge completed">✅ Ended: ${actualEnd}</div>`;
             } else if (job.status === 'Started') {
                 const actualStart = job.actualStartTime ? formatTime(job.actualStartTime.toDate()) : '';
                 actionBtn = `
                     <div style="font-size:0.75rem; color:green; margin-bottom:4px;">Started: ${actualStart}</div>
                     <button class="btn-clockout" onclick="attemptClockOut('${job.id}', '${job.accountId}')">🛑 Clock Out</button>
                 `;
-
             } else {
-                actionBtn = `<button class="btn-checkin" onclick="attemptCheckIn('${job.id}', '${job.accountId}')">📍 Check In</button>`;
+                actionBtn = `<button class="btn-checkin" onclick="attemptCheckIn('${job.id}', '${job.accountId}')">📲 Check In</button>`;
             }
 
             const card = document.createElement('div');
@@ -220,7 +199,7 @@ function renderDayView(jobs) {
 
     const col = document.createElement('div');
     col.className = 'calendar-col';
-    col.style.flex = '0 0 250px'; // Wider for single day view
+    col.style.flex = '0 0 250px';
     col.innerHTML = `<div class="cal-header">${dateString}</div>`;
 
     const dayJobs = jobs.filter(j => isSameDay(j.start, colDate));
@@ -235,12 +214,12 @@ function renderDayView(jobs) {
 
             if (job.status === 'Completed') {
                 const actualEnd = job.actualEndTime ? formatTime(job.actualEndTime.toDate()) : 'Done';
-                actionBtn = `<div class="status-badge completed">🏁 Ended: ${actualEnd}</div>`;
+                actionBtn = `<div class="status-badge completed">✅ Ended: ${actualEnd}</div>`;
             } else if (job.status === 'Started') {
                 const actualStart = job.actualStartTime ? formatTime(job.actualStartTime.toDate()) : '';
                 actionBtn = `<div style="font-size:0.75rem; color:green; margin-bottom:4px;">Started: ${actualStart}</div><button class="btn-clockout" onclick="attemptClockOut('${job.id}', '${job.accountId}')">🛑 Clock Out</button>`;
             } else {
-                actionBtn = `<button class="btn-checkin" onclick="attemptCheckIn('${job.id}', '${job.accountId}')">📍 Check In</button>`;
+                actionBtn = `<button class="btn-checkin" onclick="attemptCheckIn('${job.id}', '${job.accountId}')">📲 Check In</button>`;
             }
 
             const card = document.createElement('div');
@@ -265,19 +244,17 @@ function renderMonthView(jobs) {
     grid.style.gridTemplateColumns = 'repeat(7, 1fr)';
     grid.style.gap = '1px';
     grid.style.background = '#e5e7eb';
-    grid.style.overflowX = 'hidden'; // Don't scroll horizontally
+    grid.style.overflowX = 'hidden';
 
     const year = currentStartDate.getFullYear();
     const month = currentStartDate.getMonth();
     const firstDay = new Date(year, month, 1);
 
-    // Day labels
     const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     dayLabels.forEach(label => {
         const header = document.createElement('div');
         header.className = 'cal-header';
         header.textContent = label;
-        // Apply month header background style
         header.style.background = '#f9fafb';
         grid.appendChild(header);
     });
@@ -327,17 +304,21 @@ function renderMonthView(jobs) {
         grid.appendChild(day);
 
         iterator.setDate(iterator.getDate() + 1);
-        // Stop after loading a full week past the current month to complete the grid
         if (iterator > firstDay && iterator.getDay() === 0 && iterator.getMonth() !== month) break;
     }
 }
 
 
-// --- NAVIGATION FUNCTIONS (Exposed to HTML) ---
+// --- NAVIGATION FUNCTIONS ---
 
+// UPDATED: Now forces TODAY on 'day' view
 window.changeView = function(view) {
     currentView = view;
-    currentStartDate = normalizeDate(currentStartDate, currentView);
+    if (view === 'day') {
+        currentStartDate = new Date();
+    } else {
+        currentStartDate = normalizeDate(currentStartDate, currentView);
+    }
     sessionStorage.setItem('empPortalView', currentView);
     sessionStorage.setItem('empPortalDate', currentStartDate.toISOString());
     location.reload();
@@ -351,14 +332,12 @@ window.changePeriod = function(direction) {
     } else if (currentView === 'month') {
         currentStartDate.setMonth(currentStartDate.getMonth() + direction);
     }
-    // No need to call normalizeDate again here, as changePeriod only advances the date.
-    // The date will be normalized when it is first loaded.
     sessionStorage.setItem('empPortalDate', currentStartDate.toISOString());
     location.reload();
 };
 
 
-// --- GEOFENCING & ACTIONS (Original Code) ---
+// --- GEOFENCING & ACTIONS (UPDATED) ---
 
 function runGeofencedAction(jobId, accountId, actionType) {
     const btn = event.target;
@@ -391,13 +370,17 @@ function runGeofencedAction(jobId, accountId, actionType) {
             }
 
             const distanceKm = getDistanceFromLatLonInKm(userLat, userLng, accData.lat, accData.lng);
-            console.log(`Distance: ${distanceKm.toFixed(3)} km`);
 
-            if (distanceKm <= MAX_DISTANCE_KM) {
+            // --- NEW: DYNAMIC RADIUS CHECK ---
+            const allowedRadiusKm = (accData.geofenceRadius || 200) / 1000;
+
+            console.log(`Distance: ${distanceKm.toFixed(3)} km. Allowed: ${allowedRadiusKm} km`);
+
+            if (distanceKm <= allowedRadiusKm) {
                 if (actionType === 'in') await processCheckIn(jobId);
                 else await processClockOut(jobId);
             } else {
-                alert(`You are too far away (${distanceKm.toFixed(2)}km). Please arrive at the site.`);
+                alert(`You are too far away (${distanceKm.toFixed(2)}km). Allowed range: ${(allowedRadiusKm*1000).toFixed(0)}m. Please arrive at the site.`);
                 btn.disabled = false;
                 btn.textContent = originalText;
             }
@@ -430,7 +413,7 @@ async function processCheckIn(jobId) {
         actualStartTime: firebase.firestore.FieldValue.serverTimestamp()
     });
     window.showToast("Checked In!");
-    location.reload(); // Refresh to show new state
+    location.reload();
 }
 
 async function processClockOut(jobId) {
@@ -439,7 +422,7 @@ async function processClockOut(jobId) {
         actualEndTime: firebase.firestore.FieldValue.serverTimestamp()
     });
     window.showToast("Clocked Out!");
-    location.reload(); // Refresh to show new state
+    location.reload();
 }
 
 // Haversine Formula

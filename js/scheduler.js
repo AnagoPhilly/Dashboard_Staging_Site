@@ -81,6 +81,10 @@ async function loadScheduler() {
              }, 100);
         }
 
+        // --- ATTACH LISTENERS ---
+        attachDblClickListeners();
+        attachRowHighlighter();
+
     } catch (err) {
         console.error("Error loading jobs:", err);
         container.innerHTML = '<div style="color:red; padding:2rem; text-align:center;">Error loading schedule.</div>';
@@ -159,7 +163,7 @@ function renderMonthView(jobs, alertThreshold, emailDelay, emailEnabled, account
 
         if (!isCurrMonth && iterator > lastDay && iterator.getDay() === 0) break;
 
-        html += `<div class="month-day ${isCurrMonth ? '' : 'other-month'}" onclick="openShiftModal(new Date('${dateStr}T09:00'))">
+        html += `<div class="month-day ${isCurrMonth ? '' : 'other-month'}" onclick="window.showAssignShiftModal('17:00', '${dateStr}')">
             <div class="month-date-num">${iterator.getDate()}</div>
             <div class="month-events">`;
 
@@ -179,7 +183,7 @@ function renderMonthView(jobs, alertThreshold, emailDelay, emailEnabled, account
         });
 
         html += `</div>
-            <button class="month-add-btn" onclick="event.stopPropagation(); openShiftModal(new Date('${dateStr}T09:00'))">+</button>
+            <button class="month-add-btn" onclick="event.stopPropagation(); window.showAssignShiftModal('17:00', '${dateStr}')">+</button>
         </div>`;
 
         iterator.setDate(iterator.getDate() + 1);
@@ -204,7 +208,7 @@ function generateTimeColumn() {
 
         if (h >= 24) label += ' <span style="font-size:0.6rem; display:block; opacity:0.6;">(+1)</span>';
 
-        html += `<div class="time-slot">${label}</div>`;
+        html += `<div class="time-slot" data-hour-index="${h}">${label}</div>`;
     }
     html += '</div>';
     return html;
@@ -240,7 +244,7 @@ function renderDayColumn(dateObj, jobs, alertThreshold, emailDelay, emailEnabled
 
     let html = `<div class="calendar-day-col" style="${isSingleDay ? 'flex:1;' : ''}" data-date="${dateStr}">`;
     html += `<div class="cal-header">${displayDate}</div>`;
-    html += `<div class="day-slots" ondblclick="openShiftModal(new Date('${dateStr}T09:00:00'))">`;
+    html += `<div class="day-slots">`;
 
     const now = new Date();
 
@@ -305,6 +309,87 @@ function renderDayColumn(dateObj, jobs, alertThreshold, emailDelay, emailEnabled
     return html;
 }
 
+// --- ROW HIGHLIGHTER (Illuminates Time Column) ---
+
+function attachRowHighlighter() {
+    const grid = document.getElementById('schedulerGrid');
+
+    // Remove old listeners to prevent duplicates
+    if (grid._highlightHandler) {
+        grid.removeEventListener('mousemove', grid._highlightHandler);
+        grid.removeEventListener('mouseleave', grid._clearHighlightHandler);
+    }
+
+    // Handler for mouse movement
+    const moveHandler = function(e) {
+        const firstSlot = document.querySelector('.time-slot[data-hour-index="0"]');
+        if (!firstSlot) return;
+
+        const rect = firstSlot.getBoundingClientRect();
+        const offsetY = e.clientY - rect.top;
+
+        if (offsetY < 0) {
+            clearHighlights();
+            return;
+        }
+
+        const index = Math.floor(offsetY / 60);
+
+        if (grid._lastHighlightIndex === index) return;
+        grid._lastHighlightIndex = index;
+
+        clearHighlights();
+
+        const target = document.querySelector(`.time-slot[data-hour-index="${index}"]`);
+        if (target) {
+            target.classList.add('active-time');
+        }
+    };
+
+    const clearHighlights = function() {
+        document.querySelectorAll('.time-slot.active-time').forEach(el => {
+            el.classList.remove('active-time');
+        });
+        grid._lastHighlightIndex = -1;
+    };
+
+    grid._highlightHandler = moveHandler;
+    grid._clearHighlightHandler = clearHighlights;
+
+    grid.addEventListener('mousemove', moveHandler);
+    grid.addEventListener('mouseleave', clearHighlights);
+}
+
+// --- DOUBLE-CLICK LISTENER FUNCTION ---
+
+function attachDblClickListeners() {
+    document.querySelectorAll('.calendar-day-col').forEach(dayCol => {
+        dayCol.removeEventListener('dblclick', dblClickHandler);
+        dayCol.addEventListener('dblclick', dblClickHandler);
+    });
+}
+
+function dblClickHandler(event) {
+    if (event.target.closest('.day-event')) return;
+
+    const slotHeight = 60;
+    const daySlots = this.querySelector('.day-slots');
+    if (!daySlots) return;
+
+    const yOffset = event.clientY - daySlots.getBoundingClientRect().top;
+    const hourIndex = Math.floor(yOffset / slotHeight);
+    let clickedHour = hourIndex % 24;
+
+    const formattedTime = `${String(clickedHour).padStart(2, '0')}:00`;
+    const date = this.getAttribute('data-date');
+
+    if (typeof window.showAssignShiftModal === 'function') {
+        window.showAssignShiftModal(formattedTime, date);
+    } else {
+        console.error("showAssignShiftModal function is missing!");
+    }
+}
+
 // --- UTILS ---
 
 function updateHeaderUI() {
@@ -324,9 +409,15 @@ function updateHeaderUI() {
     });
 }
 
+// --- UPDATED VIEW CHANGER ---
 window.changeView = function(view) {
     currentView = view;
-    currentDate = normalizeDate(currentDate, currentView);
+    // CRITICAL UPDATE: If switching to 'day', always jump to TODAY
+    if (view === 'day') {
+        currentDate = new Date();
+    } else {
+        currentDate = normalizeDate(currentDate, currentView);
+    }
     loadScheduler();
 };
 
@@ -482,7 +573,8 @@ async function populateDropdowns() {
     }
 }
 
-window.openShiftModal = async function(dateObj) {
+// Global modal function (used by double-click)
+window.showAssignShiftModal = async function(startTime = "17:00", dateStr = null) {
     document.getElementById('shiftModal').style.display = 'flex';
     document.getElementById('shiftModalTitle').textContent = "Assign Shift";
     document.getElementById('shiftId').value = "";
@@ -501,13 +593,26 @@ window.openShiftModal = async function(dateObj) {
 
     await populateDropdowns();
 
-    const dateStr = dateObj.toISOString().split('T')[0];
-    document.getElementById('shiftStartDate').value = dateStr;
+    if (dateStr) {
+        document.getElementById('shiftStartDate').value = dateStr;
+    } else {
+        document.getElementById('shiftStartDate').value = new Date().toISOString().split('T')[0];
+    }
 
-    // DEFAULT TIMES: 5 PM - 6 PM
-    document.getElementById('shiftStartTime').value = "17:00";
-    document.getElementById('shiftEndTime').value = "18:00";
+    document.getElementById('shiftStartTime').value = startTime;
+
+    let [h, m] = startTime.split(':').map(Number);
+    h = (h + 1) % 24;
+    const nextVal = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+    document.getElementById('shiftEndTime').value = nextVal;
 };
+
+// Backward compatibility wrapper
+window.openShiftModal = function(dateObj) {
+    const dateStr = dateObj.toISOString().split('T')[0];
+    window.showAssignShiftModal("17:00", dateStr);
+};
+
 
 window.editJob = async function(job) {
     if(!job.start) {
@@ -548,7 +653,6 @@ window.editJob = async function(job) {
     document.getElementById('shiftStartTime').value = getHM(job.start);
     document.getElementById('shiftEndTime').value = getHM(job.end);
 
-    // SET MANUAL OVERRIDES
     if(job.actStart) {
         document.getElementById('actDate').value = getYMD(job.actStart);
         document.getElementById('actStartTime').value = getHM(job.actStart);
@@ -588,7 +692,6 @@ window.saveShift = async function() {
         const baseStart = new Date(`${sDate}T${sTime}:00`);
         let baseEnd = new Date(`${sDate}T${eTime}:00`);
 
-        // AUTO-CORRECT OVERNIGHT SHIFT
         if (baseEnd <= baseStart) {
             baseEnd.setDate(baseEnd.getDate() + 1);
         }
@@ -607,7 +710,6 @@ window.saveShift = async function() {
                 owner: window.currentUser.email
             };
 
-            // PROCESS MANUAL TIME
             const actSDate = document.getElementById('actDate').value;
             const actSTime = document.getElementById('actStartTime').value;
             const actETime = document.getElementById('actEndTime').value;
@@ -619,7 +721,7 @@ window.saveShift = async function() {
                 if(actETime) {
                     let manualEnd = new Date(`${actSDate}T${actETime}:00`);
                     if (manualEnd <= manualStart) {
-                        manualEnd.setDate(manualEnd.getDate() + 1); // Overnight check for manual
+                        manualEnd.setDate(manualEnd.getDate() + 1);
                     }
                     data.actualEndTime = firebase.firestore.Timestamp.fromDate(manualEnd);
                 }

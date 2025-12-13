@@ -43,6 +43,7 @@
 .calendar-view {
     display: flex;
     min-width: 100%;
+    position: relative; /* REQUIRED for the row highlight overlay */
 }
 
 /* Time Gutter (Left Column) */
@@ -63,6 +64,7 @@
     color: #9ca3af;
     text-align: center;
     padding-top: 5px;
+    cursor: default; /* Keep cursor standard */
 }
 
 /* Day Columns */
@@ -98,6 +100,122 @@
     background-image: linear-gradient(to bottom, #f3f4f6 1px, transparent 1px);
     background-size: 100% 60px;
 }
+
+/* --- INTERACTIVE GRID HIGHLIGHTS --- */
+
+/* 1. Time Slot Row Highlight (Now fully controlled by JS) */
+
+/* This class is added via JS when the mouse is in the corresponding row */
+.time-slot.active-time {
+    background-color: #0d9488; /* Teal primary color */
+    color: white;
+    font-weight: bold;
+    border-top-color: #0f766e;
+    transition: background-color 0.05s ease-out; /* Very fast transition for responsiveness */
+}
+
+/* We still need the overlay for the row highlight in the grid area */
+.calendar-view::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 70px; /* Start after the .calendar-time-col width */
+    right: 0;
+    width: auto;
+    height: 60px; /* Height of one hour slot */
+    background-color: transparent; /* Default state */
+    pointer-events: none; /* Allows clicks to pass through */
+    z-index: 50; /* Above the grid, below the events/shifts */
+    transition: transform 0.15s ease-out, background-color 0.15s ease-out;
+}
+
+/* This is the key change: Target the ::before element when the time slot has the JS-controlled .active-time class */
+.calendar-time-col .time-slot.active-time ~ .calendar-view::before {
+    background-color: rgba(13, 148, 136, 0.08); /* Light primary color highlight */
+}
+
+/* Define the highlight transformation for each hour (0 to 29)
+   Position = 40px (header) + (index * 60px) (slot height)
+*/
+.calendar-time-col .time-slot[data-hour-index="0"].active-time ~ .calendar-view::before { transform: translateY(40px); }
+.calendar-time-col .time-slot[data-hour-index="1"].active-time ~ .calendar-view::before { transform: translateY(100px); }
+.calendar-time-col .time-slot[data-hour-index="2"].active-time ~ .calendar-view::before { transform: translateY(160px); }
+.calendar-time-col .time-slot[data-hour-index="3"].active-time ~ .calendar-view::before { transform: translateY(220px); }
+.calendar-time-col .time-slot[data-hour-index="4"].active-time ~ .calendar-view::before { transform: translateY(280px); }
+.calendar-time-col .time-slot[data-hour-index="5"].active-time ~ .calendar-view::before { transform: translateY(340px); }
+.calendar-time-col .time-slot[data-hour-index="6"].active-time ~ .calendar-view::before { transform: translateY(400px); }
+.calendar-time-col .time-slot[data-hour-index="7"].active-time ~ .calendar-view::before { transform: translateY(460px); }
+.calendar-time-col .time-slot[data-hour-index="8"].active-time ~ .calendar-view::before { transform: translateY(520px); }
+.calendar-time-col .time-slot[data-hour-index="9"].active-time ~ .calendar-view::before { transform: translateY(580px); }
+.calendar-time-col .time-slot[data-hour-index="10"].active-time ~ .calendar-view::before { transform: translateY(640px); }
+.calendar-time-col .time-slot[data-hour-index="11"].active-time ~ .calendar-view::before { transform: translateY(700px); }
+.calendar-time-col .time-slot[data-hour-index="12"].active-time ~ .calendar-view::before { transform: translateY(760px); }
+.calendar-time-col .time-slot[data-hour-index="13"].active-time ~ .calendar-view::before { transform: translateY(820px); }
+.calendar-time-col .time-slot[data-hour-index="14"].active-time ~ .calendar-view::before { transform: translateY(880px); }
+.calendar-time-col .time-slot[data-hour-index="15"].active-time ~ .calendar-view::before { transform: translateY(940px); }
+.calendar-time-col .time-slot[data-hour-index="16"].active-time ~ .calendar-view::before { transform: translateY(1000px); }
+.calendar-time-col .time-slot[data-hour-index="17"].active-time ~ .calendar-view::before { transform: translateY(1060px); }
+.calendar-time-col .time-slot[data-hour-index="18"].active-time ~ .calendar-view::before { transform: translateY(1120px); }
+.calendar-time-col .time-slot[data-hour-index="19"].active-time ~ .calendar-view::before { transform: translateY(1180px); }
+.calendar-time-col .time-slot[data-hour-index="20"].active-time ~ .calendar-view::before { transform: translateY(1240px); }
+.calendar-time-col .time-slot[data-hour-index="21"].active-time ~ .calendar-view::before { transform: translateY(1300px); }
+.calendar-time-col .time-slot[data-hour-index="22"].active-time ~ .calendar-view::before { transform: translateY(1360px); }
+.calendar-time-col .time-slot[data-hour-index="23"].active-time ~ .calendar-view::before { transform: translateY(1420px); }
+.calendar-time-col .time-slot[data-hour-index="24"].active-time ~ .calendar-view::before { transform: translateY(1480px); }
+.calendar-time-col .time-slot[data-hour-index="25"].active-time ~ .calendar-view::before { transform: translateY(1540px); }
+.calendar-time-col .time-slot[data-hour-index="26"].active-time ~ .calendar-view::before { transform: translateY(1600px); }
+    /* These indices need to be updated to account for the 30-hour rendering */
+.calendar-time-col .time-slot[data-hour-index="27"].active-time ~ .calendar-view::before { transform: translateY(1660px); }
+.calendar-time-col .time-slot[data-hour-index="28"].active-time ~ .calendar-view::before { transform: translateY(1720px); }
+.calendar-time-col .time-slot[data-hour-index="29"].active-time ~ .calendar-view::before { transform: translateY(1780px); }
+
+
+
+/* 2. Column Hover Highlight (The light green highlight on Tue, 12/9 in the image) */
+
+/* Add a hoverable overlay that appears when mousing over the time slot area */
+.day-slots::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 59px,
+        rgba(0, 0, 0, 0.05) 59px,
+        rgba(0, 0, 0, 0.05) 60px
+    );
+    background-size: 100% 60px;
+    pointer-events: none;
+    transition: background-color 0.1s ease;
+}
+
+/* When hovering over the entire day column (which contains the time slots) */
+.calendar-day-col:hover .day-slots {
+    cursor: pointer;
+    background-color: rgba(13, 148, 136, 0.02);
+}
+
+/* Change the gradient color on hover to highlight the individual slots */
+.calendar-day-col:hover .day-slots::after {
+    background-image: repeating-linear-gradient(
+        to bottom,
+        rgba(13, 148, 136, 0.05) 0px,
+        rgba(13, 148, 136, 0.05) 59px,
+        rgba(0, 0, 0, 0.08) 59px,
+        rgba(0, 0, 0, 0.08) 60px
+    );
+    pointer-events: auto;
+}
+
+/* Ensure the time gutter (left column) doesn't participate in the day-column hover effect */
+.calendar-time-col:hover {
+    cursor: default;
+}
+
 
 /* Events (Absolute Positioned) */
 .day-event {

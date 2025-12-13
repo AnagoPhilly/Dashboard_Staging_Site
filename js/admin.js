@@ -272,21 +272,40 @@ async function uploadNewOwners(data, btn, statusEl) {
                         const client = clientDoc.data();
                         const accRef = db.collection('accounts').doc(`ACC_${client.pid}`);
 
-                        // Create active account record owned by this new user
+                        // CRITICAL: Ensure we grab the split fields (Street, City, Zip) if they exist in Master List
+                        // This prevents address inaccuracy on newly imported accounts.
+
+                        let street = client.street || '';
+                        let city = client.city || '';
+                        let state = client.state || '';
+                        let zip = client.zip || '';
+
+                        // Fallback parser if Master List is old (just in case)
+                        if (!street && client.address) {
+                            const parts = client.address.split(',').map(s => s.trim());
+                            if(parts.length >= 3) {
+                                street = parts[0];
+                                city = parts[1];
+                                if(parts[2].match(/\d{5}/)) zip = parts[2].match(/\d{5}/)[0];
+                            }
+                        }
+
                         const newAccountData = {
                             pid: client.pid,
                             name: client.name || 'Unknown',
                             address: client.address || '',
+                            street: street, // <--- ADDED
+                            city: city,     // <--- ADDED
+                            state: state,   // <--- ADDED
+                            zip: zip,       // <--- ADDED
                             revenue: client.revenue || 0,
-                            owner: email, // Assign ownership
+                            owner: email,
                             status: 'Active',
                             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                             startDate: new Date().toISOString().split('T')[0],
                             contactName: client.contactName || '',
                             contactPhone: client.contactPhone || '',
                             contactEmail: client.contactEmail || '',
-
-                            // CRITICAL FIX: Transfer GPS Coordinates if available
                             lat: client.lat || null,
                             lng: client.lng || null
                         };
@@ -327,8 +346,6 @@ async function uploadNewOwners(data, btn, statusEl) {
 
 // --- ACTIONS ---
 window.impersonateUser = function(email) {
-    if(!confirm(`Switch to Dashboard view for ${email}?`)) return;
-    alert("Loading dashboard...");
     window.location.href = `index.html?viewAs=${encodeURIComponent(email)}`;
 };
 

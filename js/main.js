@@ -1,9 +1,60 @@
 // js/main.js
 
+// --- CRITICAL GLOBAL FUNCTIONS FOR ACCOUNTS.JS ---
+
+// Function to show a simple notification
+window.showToast = function(message, type = 'success') {
+    const toast = document.createElement('div');
+    toast.className = `toast-notification ${type}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+        toast.classList.add('show');
+    }, 50);
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 500);
+    }, 3000);
+};
+
+// Function to hide the Edit Account Modal (Called by accounts.js)
+window.hideEditAccount = function() {
+    // Assuming your modal has the ID 'editAccountModal'
+    const modal = document.getElementById('editAccountModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+};
+
+// Function to hide the Add Account Modal (Called by accounts.js)
+window.hideAddAccount = function() {
+    const modal = document.getElementById('addAccountModal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.querySelectorAll('#addAccountModal input').forEach(i => i.value = '');
+    }
+    // Reset PID button state
+    const btn = document.getElementById('btnPidAutoFill');
+    if(btn) {
+        btn.innerHTML = '✨ PID Auto Fill';
+        btn.disabled = false;
+    }
+}
+
+// Function to close the Inactive Reason Modal (Called by accounts.js)
+window.hideInactiveReasonModal = function() {
+    const modal = document.getElementById('inactiveReasonModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+};
+
+// --- END CRITICAL GLOBAL FUNCTIONS ---
+
+
 function startApp() {
     console.log("CleanDash: Main app logic starting...");
 
-    // 1. Initialize Profile Listeners
     if(typeof window.initProfileListeners === 'function') {
         try {
             window.initProfileListeners();
@@ -12,32 +63,39 @@ function startApp() {
         }
     }
 
-    // 2. Initialize Admin "God Mode"
-    if(typeof initAdminDashboard === 'function') {
-        // We set a small timeout to ensure Auth is ready if this runs on reload
-        setTimeout(initAdminDashboard, 1000);
-    }
-
-    // 3. Tab Navigation Logic
+    // 2. Tab Navigation Logic (MODIFIED FOR ANALYTICS)
     const navItems = document.querySelectorAll('.nav-item[data-page]');
 
     navItems.forEach(item => {
         item.addEventListener('click', () => {
-            console.log("CleanDash: Navigating to", item.dataset.page);
+            const page = item.dataset.page;
+            console.log("CleanDash: Navigating to", page);
 
             document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
             item.classList.add('active');
 
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
 
-            const targetPage = document.getElementById(item.dataset.page);
+            const targetPage = document.getElementById(page);
             if (targetPage) {
                 targetPage.classList.add('active');
             }
 
-            // Run page-specific loaders
-            const page = item.dataset.page;
+            // --- NEW: GOOGLE ANALYTICS PAGE VIEW TRACKING ---
+            if (typeof window.gtag === 'function') {
+                const newPath = window.location.pathname.replace('index.html', '') + '/' + page;
+                const newTitle = 'CleanDash - ' + page.charAt(0).toUpperCase() + page.slice(1);
 
+                window.gtag('event', 'page_view', {
+                    'page_title': newTitle,
+                    'page_path': newPath,
+                    'send_to': 'G-HBLVYZSS3M' // Explicitly send to your property
+                });
+                console.log(`GA: Sent page_view for ${page}`);
+            }
+            // --- END NEW TRACKING ---
+
+            // Run page-specific loaders
             if (page === 'dashboard' && typeof window.loadMap === 'function') window.loadMap();
             if (page === 'accounts' && typeof window.loadAccountsList === 'function') window.loadAccountsList();
             if (page === 'employees' && typeof window.loadEmployees === 'function') window.loadEmployees();
@@ -48,59 +106,15 @@ function startApp() {
             if (page === 'profile' && typeof window.loadProfile === 'function') window.loadProfile();
         });
     });
-}
 
-// --- ADMIN GOD MODE LOGIC (Simplified for Button) ---
-
-async function initAdminDashboard() {
-    const ADMIN_EMAIL = 'nate@anagophilly.com';
-
-    if (!window.currentUser || window.currentUser.email.toLowerCase() !== ADMIN_EMAIL) {
-        return;
-    }
-
-    console.log("CleanDash: Admin Mode Active.");
-
-    const adminDiv = document.getElementById('adminControls');
-    const statusLabel = document.getElementById('adminModeStatusLabel');
-    const toggleButton = document.getElementById('godModeToggleButton');
-
-    // Check if the current user is the admin AND if the current page is not admin.html
-    const isOwnerDashboard = !window.location.pathname.includes('admin.html');
-
-    if (adminDiv) adminDiv.style.display = 'block';
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const viewAsEmail = urlParams.get('viewAs');
-    const isImpersonating = viewAsEmail && isOwnerDashboard; // Admin viewing another owner's dashboard
-
-    // If on the Admin's DASHBOARD VIEW (index.html)
-    if (isOwnerDashboard) {
-        if (isImpersonating) {
-            // If IMPERSONATING: Show current view and a REVERT button
-            // Note: window.currentUser.email holds the impersonated email here (set by auth.js)
-            if (statusLabel) statusLabel.textContent = `STATUS: Viewing ${window.currentUser.email}`;
-            if (toggleButton) {
-                toggleButton.textContent = '🔥 Revert to God Mode';
-                toggleButton.style.backgroundColor = '#f59e0b'; // Amber for revert
-            }
-        } else {
-            // If on the Admin's OWN Dashboard View (no ?viewAs=)
-            if (statusLabel) statusLabel.textContent = 'STATUS: Dashboard View';
-            if (toggleButton) {
-                toggleButton.textContent = '🔥 Go to God Mode';
-                toggleButton.style.backgroundColor = '#ef4444'; // Red for switch
-            }
-        }
-    } else {
-        // If on the God Mode Control Center (admin.html)
-        if (statusLabel) statusLabel.textContent = 'STATUS: God Mode Active';
-        if (toggleButton) {
-            toggleButton.textContent = '🔙 Exit to Dashboard';
-            toggleButton.style.backgroundColor = '#64748b'; // Secondary/Gray for exit
-        }
+    // 3. Trigger initial view load (Optional: Auto-click dashboard on load)
+    const initialNavItem = document.querySelector('.nav-item[data-page="dashboard"]');
+    if (initialNavItem) {
+        initialNavItem.click();
     }
 }
+
+// --- ADMIN GOD MODE LOGIC (Restored from your previous code) ---
 
 // New single-click function to handle the button press
 window.toggleGodModeView = function() {
@@ -112,8 +126,7 @@ window.toggleGodModeView = function() {
         window.showToast("Exiting God Mode...");
         window.location.replace('index.html');
     } else {
-        // ACTION: Go to God Mode -> Redirect to admin.html. This also covers the "Revert" action
-        // because we want to clear the ?viewAs= parameter from the URL.
+        // ACTION: Go to God Mode -> Redirect to admin.html.
         window.showToast("Switching to God Mode...");
         window.location.replace('admin.html');
     }

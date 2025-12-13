@@ -3,32 +3,25 @@
 <head>
     <title>CleanDash Admin Importer</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; padding: 0; margin: 0; background: #f3f4f6; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f3f4f6; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
         .container { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 700px; }
-        h1 { color: #0d9488; margin-top: 0; font-size: 1.5rem; border-bottom: 2px solid #f0fdfa; padding-bottom: 15px; margin-bottom: 20px; }
-
+        h1 { color: #0d9488; margin-top: 0; border-bottom: 2px solid #f0fdfa; padding-bottom: 15px; margin-bottom: 20px; }
         .upload-box { border: 2px dashed #cbd5e1; border-radius: 8px; padding: 30px; background: #f8fafc; margin: 20px 0; }
-
         select, .checkbox-wrapper { width: 100%; margin-bottom: 15px; font-size: 1rem; }
         select { padding: 12px; border-radius: 6px; border: 1px solid #d1d5db; background: white; }
-
         .checkbox-wrapper { display: flex; align-items: center; gap: 10px; background: #e0f2fe; padding: 10px; border-radius: 6px; border: 1px solid #bae6fd; color: #0369a1; font-weight: 600; box-sizing: border-box;}
-
-        button { background: #0d9488; color: white; border: none; padding: 12px 24px; font-size: 1rem; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; transition: background 0.2s; }
+        button { background: #0d9488; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; margin-bottom: 10px; transition: 0.2s; }
         button:hover { background: #0f766e; }
-        button.disabled-state { background: #9ca3af !important; cursor: not-allowed !important; opacity: 0.7; }
-
-        .log-window { background: #1f2937; color: #10b981; padding: 15px; height: 250px; overflow-y: auto; border-radius: 8px; margin-top: 20px; font-family: monospace; font-size: 0.85rem; display: none; }
+        button.disabled-state { background: #9ca3af !important; cursor: not-allowed; opacity: 0.7; }
+        .log-window { background: #1f2937; color: #10b981; padding: 15px; height: 300px; overflow-y: auto; border-radius: 8px; margin-top: 20px; font-family: monospace; font-size: 0.85rem; }
         .log-entry { margin-bottom: 4px; border-bottom: 1px solid #374151; padding-bottom: 2px; }
         .log-warn { color: #f59e0b; }
         .log-error { color: #ef4444; font-weight: bold; }
-
-        .danger-zone { margin-top: 30px; padding-top: 20px; border-top: 2px solid #fee2e2; display: flex; gap: 10px; }
+        .log-success { color: #34d399; font-weight: bold; }
+        .btn-sync { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+        .btn-sync:hover { background: #dbeafe; }
         .btn-danger { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
-        .btn-danger:hover { background: #ef4444; color: white; }
-        .btn-info { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
-        .btn-info:hover { background: #0ea5e9; color: white; }
-
+        .btn-danger:hover { background: #ef4444; }
         #authWarning { display:none; background:#fee2e2; color:#991b1b; padding:15px; border-radius:8px; text-align:center; font-weight:bold; margin-bottom:20px; border:1px solid #f87171; }
     </style>
 
@@ -60,22 +53,24 @@
         </div>
 
         <button id="btnUpload" class="disabled-state" disabled onclick="processFile()">🚀 Start Import</button>
+        <button onclick="runSmartSync()" class="btn-sync">🧠 Run Smart GPS & PID Sync (Name Match)</button>
 
         <div id="status" style="margin-top:15px; text-align:center; font-weight:bold; color: #4b5563; min-height: 20px;"></div>
         <div id="log" class="log-window"></div>
 
-        <div class="danger-zone">
-            <button onclick="checkRecordCount()" class="btn-info">📊 Check Record Count</button>
-            <button onclick="wipeMasterList()" class="btn-danger">🗑️ Delete All Master Data</button>
+        <div style="margin-top: 20px; display: flex; gap: 10px;">
+            <button onclick="checkRecordCount()" style="background:#e0f2fe; color:#0369a1;">📊 Check Counts</button>
+            <button onclick="wipeMasterList()" class="btn-danger">🗑️ Wipe Master Data</button>
         </div>
     </div>
 </div>
 
 <script src="js/auth.js"></script>
+<script src="js/utils.js"></script>
 
 <script>
     const ALLOWED_ADMIN_EMAIL = 'nate@anagophilly.com';
-    const LOCATIONIQ_KEY = "pk.c92dcfda3c6ea1c6da25f0c36c34c99e";
+    const API_KEY = window.LOCATIONIQ_KEY || "pk.c92dcfda3c6ea1c6da25f0c36c34c99e";
 
     firebase.auth().onAuthStateChanged(user => {
         const warningBox = document.getElementById('authWarning');
@@ -97,26 +92,36 @@
 
     function log(msg, type='info') {
         const l = document.getElementById('log');
-        l.style.display = 'block';
         let cls = 'log-entry';
         if(type==='warn') cls += ' log-warn';
         if(type==='error') cls += ' log-error';
+        if(type==='success') cls += ' log-success';
         l.innerHTML += `<div class="${cls}">> ${msg}</div>`;
         l.scrollTop = l.scrollHeight;
     }
 
     const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-    async function getCoordinates(address) {
-        if (!address || address.length < 5) return null;
+    // --- 1. STRUCTURED GEOCODING (Fixes Pin Accuracy) ---
+    async function getCoordinates(street, city, state, zip) {
+        if (!street) return null;
         try {
-            const url = `https://us1.locationiq.com/v1/search.php?key=${LOCATIONIQ_KEY}&q=${encodeURIComponent(address)}&format=json&limit=1`;
-            const res = await fetch(url);
-            if (!res.ok) return null;
+            // Use STRUCTURED query for max accuracy
+            const baseUrl = "https://us1.locationiq.com/v1/search.php";
+            const params = new URLSearchParams({
+                key: API_KEY,
+                street: street,
+                city: city,
+                state: state,
+                postalcode: zip,
+                format: 'json',
+                limit: 1,
+                countrycodes: 'us'
+            });
+
+            const res = await fetch(`${baseUrl}?${params.toString()}`);
             const data = await res.json();
-            if (data && data[0]) {
-                return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-            }
+            if (data && data[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
         } catch (e) { console.log("Geo error", e); }
         return null;
     }
@@ -124,300 +129,183 @@
     function processFile() {
         const file = document.getElementById('uploadCsv').files[0];
         const mode = document.getElementById('importType').value;
-
-        if(!file) return alert("Please select a CSV file first.");
-
+        if(!file) return alert("Select CSV");
         const btn = document.getElementById('btnUpload');
-        btn.disabled = true;
-        btn.classList.add('disabled-state');
-        btn.innerText = "Processing...";
-        document.getElementById('log').innerHTML = '';
+        btn.disabled = true; btn.classList.add('disabled-state'); btn.innerText = "Processing...";
 
         Papa.parse(file, {
-            header: true,
-            skipEmptyLines: true,
-            transformHeader: h => h.trim(),
+            header: true, skipEmptyLines: true, transformHeader: h => h.trim(),
             complete: function(results) {
                 if(mode === 'master') uploadMasterList(results.data, results.meta.fields);
                 else uploadHistoryBook(results.data, results.meta.fields);
             },
-            error: function(err) {
-                alert("CSV Error: " + err.message);
-                btn.disabled = false;
-                btn.classList.remove('disabled-state');
-            }
+            error: function(err) { alert(err.message); btn.disabled = false; }
         });
     }
 
+    // --- 2. UPLOAD MASTER LIST (Saves Split Fields) ---
     async function uploadMasterList(data, headers) {
-        log(`Starting Master List Upload...`);
-        log(`Headers Found: [${headers.join(', ')}]`);
-
-        const hasFranCol = headers.some(h => ['Fran ID', 'FranID', 'Franchisee', 'Owner'].includes(h));
-        if(!hasFranCol) log("WARNING: No 'Fran ID' column found in CSV. Auto-linking will not work.", 'warn');
-
-        const doGeo = document.getElementById('geoEnabled').checked; // Check geocoding toggle
-        const batchSize = 400;
-        let batch = db.batch();
-        let count = 0;
+        log("Uploading Master List...");
+        const doGeo = document.getElementById('geoEnabled').checked;
+        let batch = db.batch(); let count = 0;
 
         for (const row of data) {
-            const pid = row['Client ID'];
-            if (!pid) {
-                log(`Skipping row: Missing 'Client ID'`, 'warn');
-                continue;
-            }
+            const pid = row['Client ID']; if (!pid) continue;
 
-            let cleanRev = row['Recur Amt'] ? parseFloat(row['Recur Amt'].replace(/[$,]/g, '')) : 0;
-            let cleanDate = formatDate(row['Start Date']);
-            const franId = row['Fran ID'] || row['FranID'] || row['Franchisee'] || '';
+            // Parse fields explicitly
+            const addr = (row['Site Address'] || '').trim();
+            const city = (row['Site City'] || '').trim();
+            const state = (row['Site State'] || 'PA').trim();
+            const zip = (row['Site Zip'] || '').trim();
 
-            // --- NEW: Better Address Construction with Commas ---
-            const addr = row['Site Address'] || '';
-            const city = row['Site City'] || '';
-            const state = row['Site State'] || '';
-            const zip = row['Site Zip'] || '';
+            // Reconstruct full address for display
+            const fullAddress = [addr, city, state, zip].filter(Boolean).join(', ');
 
-            let fullAddress = addr;
-            if(city) fullAddress += `, ${city}`;
-            if(state) fullAddress += `, ${state}`;
-            if(zip) fullAddress += ` ${zip}`;
-            fullAddress = fullAddress.trim();
-
-            // --- NEW: Geocoding Logic for Master List ---
-            let lat = null;
-            let lng = null;
-            if (doGeo && fullAddress.length > 10) {
-                await sleep(650); // Pause to respect API limits
-                const coords = await getCoordinates(fullAddress);
-                if (coords) {
-                    lat = coords.lat;
-                    lng = coords.lng;
-                    log(`📍 Pin found: ${pid} (${city})`);
-                } else {
-                    log(`⚠️ No pin: ${pid}`, 'warn');
-                }
+            let lat = null, lng = null;
+            if (doGeo && addr.length > 3) {
+                await sleep(650); // Rate limit
+                const coords = await getCoordinates(addr, city, state, zip);
+                if (coords) { lat = coords.lat; lng = coords.lng; log(`📍 Pin: ${pid}`); }
             }
 
             const docRef = db.collection('master_client_list').doc(String(pid).trim());
 
+            // CRITICAL FIX: Saving 'street', 'city', 'state', 'zip' separately
             const clientData = {
                 pid: pid,
                 name: row['Service Location Name'] || '',
-                address: fullAddress, // Save the comma-formatted address
-                revenue: cleanRev,
-                startDate: cleanDate,
+                address: fullAddress, // Kept for display
+                street: addr, // <--- NEW
+                city: city,   // <--- NEW
+                state: state, // <--- NEW
+                zip: zip,     // <--- NEW
+                revenue: parseFloat((row['Recur Amt']||'0').replace(/[$,]/g, '')),
                 contactName: row['Contact Name'] || '',
                 contactPhone: row['Contact Phone'] || '',
                 contactEmail: row['Contact Email'] || '',
-                franId: franId.trim(),
+                franId: (row['Fran ID'] || row['FranID'] || '').trim(),
                 lastImportedAt: firebase.firestore.FieldValue.serverTimestamp()
             };
-
-            if (lat && lng) {
-                clientData.lat = lat;
-                clientData.lng = lng;
-            }
+            if (lat) { clientData.lat = lat; clientData.lng = lng; }
 
             batch.set(docRef, clientData, { merge: true });
-
             count++;
-            if (count % batchSize === 0) {
-                await batch.commit();
-                log(`Synced ${count} records...`);
-                batch = db.batch();
-            }
+            if (count % 400 === 0) { await batch.commit(); batch = db.batch(); }
         }
-        if (count > 0) await batch.commit();
-
-        document.getElementById('status').innerText = `✅ Master List Updated (${count} records)`;
+        await batch.commit();
+        log(`✅ Master List Updated (${count})`);
         document.getElementById('btnUpload').disabled = false;
         document.getElementById('btnUpload').classList.remove('disabled-state');
         document.getElementById('btnUpload').innerText = "Start Import";
-        alert("Master List Updated! Now you can run the Franchisee Import.");
     }
 
     async function uploadHistoryBook(data, headers) {
-        log("Starting History Import...");
-        log(`Headers Found: [${headers.join(', ')}]`);
-
-        if(!headers.includes('Client')) {
-            log("CRITICAL ERROR: 'Client' column not found in CSV!", 'error');
-            alert("Error: Your CSV is missing the 'Client' column.");
-            document.getElementById('btnUpload').disabled = false;
-            return;
-        }
-
+        log("Uploading History...");
+        if(!headers.includes('Client')) return alert("Missing 'Client' column");
         const doGeo = document.getElementById('geoEnabled').checked;
-        const batchSize = 400;
-        let batch = db.batch();
-        let count = 0;
-        let created = 0;
-        let batchCounter = 0;
+        let batch = db.batch(); let count = 0; let batchCount = 0;
 
         for (const row of data) {
-            const rawType = row['Type'] || '';
-            const type = rawType.trim();
-            const clientId = row['Client'];
+            const clientId = row['Client']; if (!clientId) continue;
 
-            if (!clientId) {
-                log("Skipping row: Missing 'Client' ID", 'warn');
-                continue;
-            }
-
-            // Lookup Master Data
+            // Lookup Master
             let masterData = {};
             try {
                 const snap = await db.collection('master_client_list').doc(String(clientId).trim()).get();
-                if (snap.exists) masterData = snap.data();
+                if(snap.exists) masterData = snap.data();
             } catch(e) {}
 
             const finalName = masterData.name || `Client ${clientId}`;
-            // Fallback to master data address if available (it has commas now!)
             const finalAddr = masterData.address || 'Address Lookup Failed';
-
-            // --- SMART STATUS LOGIC ---
-            const isOneTime = type.toLowerCase().includes('1x job');
-            let isInactive = (type === 'Inactive' || type.startsWith('Transfer') || isOneTime);
-
-            let endDate = null;
-            let inactiveReason = null;
-
-            if (isInactive) {
-                if (isOneTime) {
-                    inactiveReason = 'One-Time Job';
-                    endDate = formatDate(row['Start Date']) || new Date().toISOString().split('T')[0];
-                } else if (type.includes('Transfer')) {
-                    inactiveReason = type;
-                } else {
-                    inactiveReason = 'Past Service';
-                }
-
-                let endRaw = row['Transfer Date'];
-                if (!endRaw || endRaw.trim() === '') endRaw = row['Last Clean'];
-                if (!endRaw || endRaw.trim() === '') endRaw = row['Last Responsible'];
-                if (endRaw) endDate = formatDate(endRaw);
-                if (!endDate) endDate = new Date().toISOString().split('T')[0];
-            }
-
-            const startDate = formatDate(row['Start Date']);
-            let revenue = 0;
-            if(row['Recur Amt']) {
-                 revenue = parseFloat(row['Recur Amt'].replace(/[$,]/g, ''));
-            }
-
-            // Geocoding (Only if master data didn't have it)
             let lat = masterData.lat || null;
             let lng = masterData.lng || null;
 
-            if (doGeo && !lat && finalAddr && finalAddr.length > 5) {
+            if (doGeo && !lat && finalAddr.length > 5) {
                 await sleep(600);
-                const coords = await getCoordinates(finalAddr);
-                if (coords) {
-                    lat = coords.lat;
-                    lng = coords.lng;
-                    log(`📍 Found pin for: ${clientId}`);
-                }
+                // Fallback using single string if master data missing
+                const coords = await getCoordinates(finalAddr, '', '', '');
+                if (coords) { lat = coords.lat; lng = coords.lng; log(`📍 Fallback Pin: ${clientId}`); }
             }
 
+            // Create Account Doc
             const accRef = db.collection('accounts').doc(`ACC_${clientId}`);
             const accData = {
-                pid: clientId,
-                name: finalName,
-                address: finalAddr,
-                revenue: revenue,
-                startDate: startDate,
-                endDate: endDate,
-                status: isInactive ? 'Inactive' : 'Active',
-                inactiveReason: inactiveReason,
-                contactName: masterData.contactName || '',
-                contactPhone: masterData.contactPhone || '',
-                contactEmail: masterData.contactEmail || '',
-                owner: ALLOWED_ADMIN_EMAIL,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            };
+                pid: clientId, name: finalName, address: finalAddr,
+                revenue: parseFloat((row['Recur Amt']||'0').replace(/[$,]/g, '')),
+                startDate: formatDate(row['Start Date']),
+                status: 'Active',
+                contactName: masterData.contactName || '', contactPhone: masterData.contactPhone || '',
+                contactEmail: masterData.contactEmail || '', owner: ALLOWED_ADMIN_EMAIL,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
 
-            if(lat && lng) {
-                accData.lat = lat;
-                accData.lng = lng;
-            }
+                // Copy split fields if available
+                street: masterData.street || '',
+                city: masterData.city || '',
+                state: masterData.state || '',
+                zip: masterData.zip || ''
+            };
+            if(lat) { accData.lat = lat; accData.lng = lng; }
 
             batch.set(accRef, accData, { merge: true });
-
-            count++;
-            created++;
-            batchCounter++;
-
-            if (batchCounter >= batchSize) {
-                await batch.commit();
-                log(`💾 Saved batch of ${batchSize} accounts...`);
-                batch = db.batch();
-                batchCounter = 0;
-            }
+            count++; batchCount++;
+            if (batchCount >= 400) { await batch.commit(); batch = db.batch(); batchCount = 0; }
         }
-
-        if (batchCounter > 0) await batch.commit();
-
-        document.getElementById('status').innerText = `✅ Processed ${created} Accounts!`;
+        await batch.commit();
+        log(`✅ Processed ${count} Accounts`);
         document.getElementById('btnUpload').disabled = false;
         document.getElementById('btnUpload').classList.remove('disabled-state');
         document.getElementById('btnUpload').innerText = "Start Import";
-        alert(`Import Complete! Processed ${created} records.`);
+    }
+
+    // --- SMART SYNC (Backwards Compatibility) ---
+    async function runSmartSync() {
+        if(!confirm("Attempt to fix missing split-address fields on existing accounts?")) return;
+        log("Running Sync...");
+        const snap = await db.collection('master_client_list').get();
+        const masterData = {};
+        snap.forEach(doc => masterData[doc.id] = doc.data());
+
+        const accSnap = await db.collection('accounts').get();
+        let batch = db.batch(); let ops = 0;
+
+        accSnap.forEach(doc => {
+            const acc = doc.data();
+            const m = masterData[acc.pid] || masterData[doc.id.replace('ACC_', '')];
+
+            if (m && m.street && !acc.street) {
+                batch.update(doc.ref, {
+                    street: m.street, city: m.city, state: m.state, zip: m.zip,
+                    lat: m.lat, lng: m.lng // Sync pin too
+                });
+                ops++;
+            }
+
+            if(ops >= 400) { batch.commit(); batch = db.batch(); ops = 0; }
+        });
+        if(ops > 0) await batch.commit();
+        log("Sync Done.");
     }
 
     function formatDate(dateStr) {
         if(!dateStr) return '';
         const parts = dateStr.trim().replace(/\//g, '-').split('-');
-        if(parts.length === 3) {
-            let y = parts[2];
-            if(y.length === 2) y = '20' + y;
-            return `${y}-${parts[0].padStart(2,'0')}-${parts[1].padStart(2,'0')}`;
-        }
+        if(parts.length === 3) return `20${parts[2]}-${parts[0].padStart(2,'0')}-${parts[1].padStart(2,'0')}`;
         return '';
     }
-
     async function checkRecordCount() {
-        document.getElementById('status').innerText = "Checking...";
-        try {
-            const snap = await db.collection('master_client_list').get();
-            alert(`Master List contains: ${snap.size} records.`);
-            document.getElementById('status').innerText = `Count: ${snap.size} records`;
-        } catch(e) { alert("Error checking: " + e.message); }
+        try { const snap = await db.collection('master_client_list').get(); alert(`Master: ${snap.size}`); } catch(e) { alert(e); }
     }
-
     async function wipeMasterList() {
-        if(!confirm("⚠️ DANGER: This deletes the Master Client List. Continue?")) return;
-        const confirmation = prompt("Type DELETE to confirm:");
-        if (confirmation !== "DELETE") return;
-
-        document.getElementById('status').innerText = "DELETING... Please wait.";
-        try {
-            const collectionRef = db.collection('master_client_list');
-            const snapshot = await collectionRef.get();
-
-            if (snapshot.size === 0) {
-                document.getElementById('status').innerText = "Already Empty.";
-                return alert("List is already empty.");
-            }
-
-            let batch = db.batch();
-            let count = 0;
-
-            for (const doc of snapshot.docs) {
-                batch.delete(doc.ref);
-                count++;
-                if (count >= 400) {
-                    await batch.commit();
-                    batch = db.batch();
-                    count = 0;
-                }
-            }
-
-            if (count > 0) await batch.commit();
-
-            alert("Master List Wiped.");
-            document.getElementById('status').innerText = "Database Empty (0 Records)";
-        } catch (e) { alert("Error: " + e.message); }
+        if(!confirm("Wipe Master List?")) return;
+        if(prompt("Type DELETE") !== "DELETE") return;
+        const snap = await db.collection('master_client_list').get();
+        let batch = db.batch(); let count = 0;
+        for(const doc of snap.docs) {
+            batch.delete(doc.ref); count++;
+            if(count >= 400) { await batch.commit(); batch = db.batch(); count = 0; }
+        }
+        await batch.commit();
+        alert("Wiped.");
     }
 </script>
 </body>

@@ -75,7 +75,8 @@ async function loadMap() {
     if (!map) {
         map = L.map('map').setView([39.8, -98.5], 4);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-        if (L.Control.Geocoder) L.Control.geocoder({ placeholder: "Search..." }).addTo(map);
+        // REMOVED: Search Control/Geocoder from the map interface
+        // if (L.Control.Geocoder) L.Control.geocoder({ placeholder: "Search..." }).addTo(map);
     }
 
     setTimeout(() => { map.invalidateSize(); }, 200);
@@ -119,9 +120,8 @@ async function loadMap() {
         });
 
         // --- 3. Load Account Pins & List ---
-        const q = window.currentUser.email === 'admin@cleandash.com'
-            ? db.collection('accounts')
-            : db.collection('accounts').where('owner', '==', window.currentUser.email);
+        // Load only accounts assigned to the current user (consistent with loadAccountsList fix)
+        const q = db.collection('accounts').where('owner', '==', window.currentUser.email);
 
         const accSnap = await q.get();
 
