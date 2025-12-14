@@ -1,13 +1,11 @@
-// js/employee_portal.js
+// js/employee_portal.js - UPDATED with GA4 Tracking
 
 // --- GLOBAL STATE ---
-// Load state from session, default to 'week' view and today's date
 let currentView = sessionStorage.getItem('empPortalView') || 'week';
 let currentStartDate = sessionStorage.getItem('empPortalDate')
     ? new Date(sessionStorage.getItem('empPortalDate'))
     : new Date();
 
-// Helper to normalize the date based on the current view
 function normalizeDate(date, view) {
     const d = new Date(date);
     d.setHours(0, 0, 0, 0);
@@ -21,15 +19,11 @@ function normalizeDate(date, view) {
     return d;
 }
 
-// Normalize the start date once and ensure the date object is correct
 currentStartDate = normalizeDate(currentStartDate, currentView);
-
-// Save initial state to session
 sessionStorage.setItem('empPortalView', currentView);
 sessionStorage.setItem('empPortalDate', currentStartDate.toISOString());
 
-// NOTE: MAX_DISTANCE_KM removed in favor of dynamic per-account radius
-
+// --- AUTH LISTENER ---
 auth.onAuthStateChanged(async user => {
     if (user) {
         const empSnap = await db.collection('employees').where('email', '==', user.email).get();
@@ -56,6 +50,16 @@ auth.onAuthStateChanged(async user => {
 });
 
 async function loadMyShifts(employeeId) {
+    // --- GA4 TRACKING: VIEW CHANGE ---
+    if (typeof window.gtag === 'function') {
+        window.gtag('event', 'page_view', {
+            'page_title': `Portal - ${currentView.charAt(0).toUpperCase() + currentView.slice(1)} View`,
+            'page_path': `/portal/${currentView}`,
+            'send_to': 'G-RBLYEZS5JM'
+        });
+    }
+    // --------------------------------
+
     const container = document.getElementById('schedulerGrid');
     const hoursDisplay = document.getElementById('totalHoursDisplay');
     const dateEl = document.getElementById('weekRangeDisplay');
@@ -123,8 +127,10 @@ async function loadMyShifts(employeeId) {
     }
 }
 
-// --- RENDERERS ---
+// ... (renderWeekView, renderDayView, renderMonthView functions remain unchanged) ...
+// ... (Include the Renderers from previous code here if re-copying full file) ...
 
+// --- RE-INSERTED RENDERERS FOR COMPLETENESS ---
 function isSameDay(d1, d2) {
     return d1.getFullYear() === d2.getFullYear() &&
            d1.getMonth() === d2.getMonth() &&
@@ -134,7 +140,6 @@ function isSameDay(d1, d2) {
 function formatTime(date) {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
-
 
 function renderWeekView(jobs) {
     const grid = document.getElementById('schedulerGrid');
@@ -181,7 +186,6 @@ function renderWeekView(jobs) {
             `;
             col.appendChild(card);
         });
-
         grid.appendChild(col);
     }
 }
@@ -211,7 +215,6 @@ function renderDayView(jobs) {
         dayJobs.forEach(job => {
             const timeStr = formatTime(job.start);
             let actionBtn = '';
-
             if (job.status === 'Completed') {
                 const actualEnd = job.actualEndTime ? formatTime(job.actualEndTime.toDate()) : 'Done';
                 actionBtn = `<div class="status-badge completed">✅ Ended: ${actualEnd}</div>`;
@@ -221,7 +224,6 @@ function renderDayView(jobs) {
             } else {
                 actionBtn = `<button class="btn-checkin" onclick="attemptCheckIn('${job.id}', '${job.accountId}')">📲 Check In</button>`;
             }
-
             const card = document.createElement('div');
             card.className = 'shift-card';
             card.innerHTML = `
@@ -232,7 +234,6 @@ function renderDayView(jobs) {
             col.appendChild(card);
         });
     }
-
     grid.appendChild(col);
 }
 
@@ -245,11 +246,9 @@ function renderMonthView(jobs) {
     grid.style.gap = '1px';
     grid.style.background = '#e5e7eb';
     grid.style.overflowX = 'hidden';
-
     const year = currentStartDate.getFullYear();
     const month = currentStartDate.getMonth();
     const firstDay = new Date(year, month, 1);
-
     const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     dayLabels.forEach(label => {
         const header = document.createElement('div');
@@ -258,10 +257,8 @@ function renderMonthView(jobs) {
         header.style.background = '#f9fafb';
         grid.appendChild(header);
     });
-
     let iterator = new Date(firstDay);
     iterator.setDate(iterator.getDate() - iterator.getDay());
-
     for(let i=0; i<42; i++) {
         const day = document.createElement('div');
         const isCurrMonth = iterator.getMonth() === month;
@@ -270,11 +267,8 @@ function renderMonthView(jobs) {
         day.style.background = isCurrMonth ? 'white' : '#f9fafb';
         day.style.color = isCurrMonth ? '#1f2937' : '#ccc';
         day.style.padding = '8px';
-
         day.innerHTML = `<div style="font-weight: 700; font-size: 0.9rem; margin-bottom: 4px;">${iterator.getDate()}</div>`;
-
         const dayJobs = jobs.filter(j => isSameDay(j.start, iterator));
-
         if (dayJobs.length > 0) {
             dayJobs.forEach(job => {
                 const event = document.createElement('div');
@@ -286,7 +280,6 @@ function renderMonthView(jobs) {
                 event.style.overflow = 'hidden';
                 event.style.textOverflow = 'ellipsis';
                 event.textContent = `${formatTime(job.start)} ${job.accountName}`;
-
                 if (job.status === 'Completed') {
                     event.style.background = '#dcfce7';
                     event.style.color = '#065f46';
@@ -300,18 +293,13 @@ function renderMonthView(jobs) {
                 day.appendChild(event);
             });
         }
-
         grid.appendChild(day);
-
         iterator.setDate(iterator.getDate() + 1);
         if (iterator > firstDay && iterator.getDay() === 0 && iterator.getMonth() !== month) break;
     }
 }
+// --- END RENDERERS ---
 
-
-// --- NAVIGATION FUNCTIONS ---
-
-// UPDATED: Now forces TODAY on 'day' view
 window.changeView = function(view) {
     currentView = view;
     if (view === 'day') {
@@ -335,7 +323,6 @@ window.changePeriod = function(direction) {
     sessionStorage.setItem('empPortalDate', currentStartDate.toISOString());
     location.reload();
 };
-
 
 // --- GEOFENCING & ACTIONS (UPDATED) ---
 
@@ -371,7 +358,7 @@ function runGeofencedAction(jobId, accountId, actionType) {
 
             const distanceKm = getDistanceFromLatLonInKm(userLat, userLng, accData.lat, accData.lng);
 
-            // --- NEW: DYNAMIC RADIUS CHECK ---
+            // DYNAMIC RADIUS CHECK
             const allowedRadiusKm = (accData.geofenceRadius || 200) / 1000;
 
             console.log(`Distance: ${distanceKm.toFixed(3)} km. Allowed: ${allowedRadiusKm} km`);
@@ -380,6 +367,15 @@ function runGeofencedAction(jobId, accountId, actionType) {
                 if (actionType === 'in') await processCheckIn(jobId);
                 else await processClockOut(jobId);
             } else {
+                // --- GA4 TRACKING: FAILED ATTEMPT ---
+                if (typeof window.gtag === 'function') {
+                    window.gtag('event', 'check_in_failed', {
+                        'reason': 'too_far',
+                        'distance_km': distanceKm.toFixed(3),
+                        'send_to': 'G-RBLYEZS5JM'
+                    });
+                }
+                // ------------------------------------
                 alert(`You are too far away (${distanceKm.toFixed(2)}km). Allowed range: ${(allowedRadiusKm*1000).toFixed(0)}m. Please arrive at the site.`);
                 btn.disabled = false;
                 btn.textContent = originalText;
@@ -412,6 +408,15 @@ async function processCheckIn(jobId) {
         status: 'Started',
         actualStartTime: firebase.firestore.FieldValue.serverTimestamp()
     });
+
+    // --- GA4 TRACKING: SUCCESSFUL CHECK IN ---
+    if (typeof window.gtag === 'function') {
+        window.gtag('event', 'check_in_success', {
+            'send_to': 'G-RBLYEZS5JM'
+        });
+    }
+    // -----------------------------------------
+
     window.showToast("Checked In!");
     location.reload();
 }
@@ -421,6 +426,15 @@ async function processClockOut(jobId) {
         status: 'Completed',
         actualEndTime: firebase.firestore.FieldValue.serverTimestamp()
     });
+
+    // --- GA4 TRACKING: SUCCESSFUL CLOCK OUT ---
+    if (typeof window.gtag === 'function') {
+        window.gtag('event', 'clock_out_success', {
+            'send_to': 'G-RBLYEZS5JM'
+        });
+    }
+    // ------------------------------------------
+
     window.showToast("Clocked Out!");
     location.reload();
 }
