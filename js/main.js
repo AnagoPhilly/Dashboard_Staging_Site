@@ -81,7 +81,7 @@ function startApp() {
                 targetPage.classList.add('active');
             }
 
-            // --- NEW: GOOGLE ANALYTICS PAGE VIEW TRACKING ---
+            // --- GOOGLE ANALYTICS PAGE VIEW TRACKING (FIXED ID) ---
             if (typeof window.gtag === 'function') {
                 const newPath = window.location.pathname.replace('index.html', '') + '/' + page;
                 const newTitle = 'CleanDash - ' + page.charAt(0).toUpperCase() + page.slice(1);
@@ -89,7 +89,8 @@ function startApp() {
                 window.gtag('event', 'page_view', {
                     'page_title': newTitle,
                     'page_path': newPath,
-                    'send_to': 'G-HBLVYZSS3M' // Explicitly send to your property
+                    // *** CRITICAL FIX: USING YOUR CORRECT ID ***
+                    'send_to': 'G-RBLYEZS5JM'
                 });
                 console.log(`GA: Sent page_view for ${page}`);
             }
