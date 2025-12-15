@@ -56,6 +56,17 @@
             color: #666;
             font-weight: 700;
         }
+
+        /* New Styles for Admin Tables */
+        .admin-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .admin-table th { text-align: left; padding: 12px; background: #f3f4f6; color: #4b5563; border-bottom: 2px solid #e5e7eb; font-size: 0.85rem; text-transform: uppercase; }
+        .admin-table td { padding: 12px; border-bottom: 1px solid #eee; color: #1f2937; font-size: 0.95rem; }
+        .admin-table tr:hover { background: #f9fafb; }
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; }
+        .badge-active { background: #dcfce7; color: #166534; }
+        .badge-inactive { background: #fee2e2; color: #991b1b; }
+
+        /* User Row Styles (Kept from original) */
         .user-row {
             display: flex;
             align-items: center;
@@ -67,13 +78,6 @@
         }
         .user-row:hover {
             background: #f9fafb;
-        }
-        .badge {
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            font-weight: bold;
-            text-transform: uppercase;
         }
         .badge-owner {
             background: #e0f2fe; /* Light Blue */
@@ -129,7 +133,8 @@
             <div style="font-family: monospace; font-size: 0.8rem;">Administrator Access</div>
         </div>
         <nav class="nav">
-            <div class="nav-item active">System Overview</div>
+            <div id="nav-users" class="nav-item active" onclick="switchAdminTab('users')">Franchise Owners</div>
+            <div id="nav-accounts" class="nav-item" onclick="switchAdminTab('accounts')">Master Accounts</div>
             <div class="nav-item" onclick="window.open('import.html', '_blank')">Data Importer Tool</div>
             <div class="nav-item" onclick="window.location.href='index.html'">Exit to Dashboard</div>
         </nav>
@@ -157,44 +162,129 @@
                 </div>
             </div>
 
-            <div class="content-card">
-                <div class="card-header">
-                    <h2>User Database</h2>
-                    <input type="text" id="userSearch" placeholder="Search users..." style="padding: 8px; border-radius: 4px; border: 1px solid #ccc;" onkeyup="filterUsers()">
+            <div id="view-users" class="admin-view">
+                <div class="content-card">
+                    <div class="card-header">
+                        <h2>Franchise Owner Database</h2>
+                        <input type="text" id="userSearch" placeholder="Search users..." style="padding: 8px; border-radius: 4px; border: 1px solid #ccc;" onkeyup="filterUsers()">
+                    </div>
+                    <div id="userList" style="border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+                        <div style="padding: 20px; text-align: center; color: #666;">Loading users...</div>
+                    </div>
                 </div>
-                <div id="userList" style="border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
-                    <div style="padding: 20px; text-align: center; color: #666;">Loading users...</div>
+
+                <div class="content-card" style="margin-top: 30px;">
+                    <div class="card-header" style="border-bottom:none; margin-bottom: 0;">
+                        <h2>Bulk Franchise Owner Import</h2>
+                        <p style="color:#ef4444; font-weight:700;">⚠️ Use ONLY for initial setup. Accounts created here use a temporary password.</p>
+                    </div>
+
+                    <div style="padding: 20px; border: 2px dashed #fca5a5; background: #fffbeb; border-radius: 8px;">
+                        <label style="font-weight:bold; color:#374151; display:block; margin-bottom: 10px;">Select Franchise Owners CSV File:</label>
+                        <input type="file" id="ownersCsvUpload" accept=".csv" />
+
+                        <button class="btn btn-primary"
+                                id="btnImportOwners"
+                                onclick="importOwnersFromCSV()"
+                                style="width: 100%; margin-top: 20px;">
+                            🚀 Start Bulk Import and Account Creation
+                        </button>
+
+                        <div id="importOwnerStatus" style="margin-top:15px; text-align:center; font-weight:bold; color: #4b5563; min-height: 20px;"></div>
+                    </div>
+
+                    <div style="margin-top: 20px;">
+                        <h3 style="font-size: 1rem; color: #666; margin-bottom: 5px;">Required CSV Columns:</h3>
+                        <code style="background:#f3f4f6; padding: 5px 10px; border-radius:4px; font-size: 0.9rem; display: block;">
+                            CompanyName, Address, City, State, Zip, ContactName, ContactPhone, ContactEmail, CFee, PurchaseDate
+                        </code>
+                    </div>
                 </div>
             </div>
 
-            <div class="content-card" style="margin-top: 30px;">
-                <div class="card-header" style="border-bottom:none; margin-bottom: 0;">
-                    <h2>Bulk Franchise Owner Import</h2>
-                    <p style="color:#ef4444; font-weight:700;">⚠️ Use ONLY for initial setup. Accounts created here use a temporary password.</p>
-                </div>
-
-                <div style="padding: 20px; border: 2px dashed #fca5a5; background: #fffbeb; border-radius: 8px;">
-                    <label style="font-weight:bold; color:#374151; display:block; margin-bottom: 10px;">Select Franchise Owners CSV File:</label>
-                    <input type="file" id="ownersCsvUpload" accept=".csv" />
-
-                    <button class="btn btn-primary"
-                            id="btnImportOwners"
-                            onclick="importOwnersFromCSV()"
-                            style="width: 100%; margin-top: 20px;">
-                        🚀 Start Bulk Import and Account Creation
-                    </button>
-
-                    <div id="importOwnerStatus" style="margin-top:15px; text-align:center; font-weight:bold; color: #4b5563; min-height: 20px;"></div>
-                </div>
-
-                <div style="margin-top: 20px;">
-                    <h3 style="font-size: 1rem; color: #666; margin-bottom: 5px;">Required CSV Columns:</h3>
-                    <code style="background:#f3f4f6; padding: 5px 10px; border-radius:4px; font-size: 0.9rem; display: block;">
-                        CompanyName, Address, City, State, Zip, ContactName, ContactPhone, ContactEmail, CFee, PurchaseDate
-                    </code>
+            <div id="view-accounts" class="admin-view" style="display:none;">
+                <div class="content-card">
+                    <div class="card-header">
+                        <h2>Master Client Database</h2>
+                        <div style="display:flex; gap:10px;">
+                            <input type="text" id="masterSearch" placeholder="Search PID, Name, Address..." style="padding: 8px; width: 300px; border-radius: 4px; border: 1px solid #ccc;" onkeyup="filterMasterAccounts()">
+                            <button class="btn btn-secondary" onclick="loadMasterAccounts()">🔄 Refresh</button>
+                        </div>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table class="admin-table">
+                            <thead>
+                            <tr>
+                                <th>PID</th>
+                                <th>Client Name</th>
+                                <th>Address</th>
+                                <th>Fran ID</th>
+                                <th style="text-align:right;">Revenue</th>
+                                <th style="text-align:center;">Status</th>
+                                <th style="text-align:center; width: 100px;">Actions</th>
+                            </tr>
+                            </thead>
+                            <tbody id="masterAccountList">
+                            <tr><td colspan="7" style="text-align:center; padding:2rem;">Loading master database...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="masterCountDisplay" style="margin-top:10px; font-size:0.85rem; color:#666; text-align:right;"></div>
                 </div>
             </div>
 
+        </div>
+    </div>
+</div>
+
+<div id="editMasterAccountModal" class="modal">
+    <div class="modal-content" style="max-width: 500px;">
+        <h2 style="color: var(--primary);">Edit Master Client: <span id="editMasterPidDisplay"></span></h2>
+
+        <input type="hidden" id="editMasterId" />
+
+        <div class="input-wrapper" style="margin-bottom:10px;">
+            <label for="editMasterName">Client Name</label>
+            <input type="text" id="editMasterName" />
+        </div>
+
+        <div class="input-wrapper" style="margin-bottom:10px;">
+            <label for="editMasterFranId">Franchise ID (e.g., PHL001)</label>
+            <input type="text" id="editMasterFranId" />
+        </div>
+
+        <div class="input-wrapper" style="margin-bottom:10px;">
+            <label for="editMasterRevenue">Monthly Revenue ($)</label>
+            <input type="number" step="0.01" id="editMasterRevenue" />
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:15px;">
+            <div class="input-wrapper">
+                <label for="editMasterStatus">Status</label>
+                <select id="editMasterStatus">
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                    <option value="Cancelled">Cancelled</option>
+                </select>
+            </div>
+            <div class="input-wrapper">
+                <label for="editMasterStartDate">Start Date</label>
+                <input type="date" id="editMasterStartDate" />
+            </div>
+        </div>
+
+        <div style="border-top: 1px dashed #e5e7eb; padding-top: 15px;">
+            <p style="font-weight:600; font-size:0.9rem; color:#6b7280;">Full Address (Used for Geocoding in Franchisee Accounts)</p>
+            <div class="input-wrapper"><label for="editMasterStreet">Street</label><input type="text" id="editMasterStreet" /></div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                <div class="input-wrapper"><label for="editMasterCity">City</label><input type="text" id="editMasterCity" /></div>
+                <div class="input-wrapper"><label for="editMasterZip">Zip</label><input type="text" id="editMasterZip" /></div>
+            </div>
+        </div>
+
+        <div class="modal-buttons">
+            <button onclick="saveEditedMasterAccount(event)" class="btn btn-primary">Save Master Changes</button>
+            <button onclick="document.getElementById('editMasterAccountModal').style.display='none'" class="cancel">Cancel</button>
         </div>
     </div>
 </div>

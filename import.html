@@ -39,8 +39,9 @@
     <div id="appContent" style="opacity:0.5; pointer-events:none;">
         <label style="font-weight:bold; color:#374151;">Select Import Type:</label>
         <select id="importType">
-            <option value="master">1. Master Client List (clients.csv)</option>
-            <option value="history">2. Account History/Book (Book.csv)</option>
+            <option value="master">1. Active Master List (Upsert & Update)</option>
+            <option value="cancelled">2. Cancelled Client List (Set Inactive)</option>
+            <option value="history">3. Legacy Account History (Initial Setup)</option>
         </select>
 
         <div class="checkbox-wrapper">
@@ -53,13 +54,13 @@
         </div>
 
         <button id="btnUpload" class="disabled-state" disabled onclick="processFile()">🚀 Start Import</button>
-        <button onclick="runSmartSync()" class="btn-sync">🧠 Run Smart GPS & PID Sync (Name Match)</button>
+        <button onclick="runSmartSync()" class="btn-sync">🧠 Run Smart Sync (Fix Missing Owner Addresses)</button>
 
         <div id="status" style="margin-top:15px; text-align:center; font-weight:bold; color: #4b5563; min-height: 20px;"></div>
         <div id="log" class="log-window"></div>
 
         <div style="margin-top: 20px; display: flex; gap: 10px;">
-            <button onclick="checkRecordCount()" style="background:#e0f2fe; color:#0369a1;">📊 Check Counts</button>
+            <button onclick="checkRecordCount()" style="background:#e0f2fe; color:#0369a1;">📊 Check Master Count</button>
             <button onclick="wipeMasterList()" class="btn-danger">🗑️ Wipe Master Data</button>
         </div>
     </div>
@@ -70,7 +71,13 @@
 
 <script>
     const ALLOWED_ADMIN_EMAIL = 'nate@anagophilly.com';
+    // Note: Ensure your API Key is secure in production
     const API_KEY = window.LOCATIONIQ_KEY || "pk.c92dcfda3c6ea1c6da25f0c36c34c99e";
+
+    // Initialize Firebase (Assuming already initialized in js/auth.js, if not, add config here)
+    // const firebaseConfig = { ... };
+    // firebase.initializeApp(firebaseConfig);
+    //const db = firebase.firestore();
 
     firebase.auth().onAuthStateChanged(user => {
         const warningBox = document.getElementById('authWarning');
@@ -102,11 +109,10 @@
 
     const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-    // --- 1. STRUCTURED GEOCODING (Fixes Pin Accuracy) ---
+    // --- GEOCODING UTILITY ---
     async function getCoordinates(street, city, state, zip) {
-        if (!street) return null;
+        if (!street && !city) return null;
         try {
-            // Use STRUCTURED query for max accuracy
             const baseUrl = "https://us1.locationiq.com/v1/search.php";
             const params = new URLSearchParams({
                 key: API_KEY,
@@ -136,131 +142,237 @@
         Papa.parse(file, {
             header: true, skipEmptyLines: true, transformHeader: h => h.trim(),
             complete: function(results) {
-                if(mode === 'master') uploadMasterList(results.data, results.meta.fields);
-                else uploadHistoryBook(results.data, results.meta.fields);
+                if(mode === 'master') uploadMasterList(results.data);
+                else if(mode === 'cancelled') uploadCancelledList(results.data);
+                else uploadHistoryBook(results.data);
             },
             error: function(err) { alert(err.message); btn.disabled = false; }
         });
     }
 
-    // --- 2. UPLOAD MASTER LIST (Saves Split Fields) ---
-    async function uploadMasterList(data, headers) {
-        log("Uploading Master List...");
-        const doGeo = document.getElementById('geoEnabled').checked;
-        let batch = db.batch(); let count = 0;
-
-        for (const row of data) {
-            const pid = row['Client ID']; if (!pid) continue;
-
-            // Parse fields explicitly
-            const addr = (row['Site Address'] || '').trim();
-            const city = (row['Site City'] || '').trim();
-            const state = (row['Site State'] || 'PA').trim();
-            const zip = (row['Site Zip'] || '').trim();
-
-            // Reconstruct full address for display
-            const fullAddress = [addr, city, state, zip].filter(Boolean).join(', ');
-
-            let lat = null, lng = null;
-            if (doGeo && addr.length > 3) {
-                await sleep(650); // Rate limit
-                const coords = await getCoordinates(addr, city, state, zip);
-                if (coords) { lat = coords.lat; lng = coords.lng; log(`📍 Pin: ${pid}`); }
+    // --- HELPER: Map Fran ID to Owner Email ---
+    async function getFranIdMap() {
+        log("Fetching Franchise Owners map...");
+        const map = {};
+        const snap = await db.collection('users').where('role', '==', 'owner').get();
+        snap.forEach(doc => {
+            const data = doc.data();
+            if (data.franId) {
+                map[data.franId.toUpperCase()] = data.email;
             }
-
-            const docRef = db.collection('master_client_list').doc(String(pid).trim());
-
-            // CRITICAL FIX: Saving 'street', 'city', 'state', 'zip' separately
-            const clientData = {
-                pid: pid,
-                name: row['Service Location Name'] || '',
-                address: fullAddress, // Kept for display
-                street: addr, // <--- NEW
-                city: city,   // <--- NEW
-                state: state, // <--- NEW
-                zip: zip,     // <--- NEW
-                revenue: parseFloat((row['Recur Amt']||'0').replace(/[$,]/g, '')),
-                contactName: row['Contact Name'] || '',
-                contactPhone: row['Contact Phone'] || '',
-                contactEmail: row['Contact Email'] || '',
-                franId: (row['Fran ID'] || row['FranID'] || '').trim(),
-                lastImportedAt: firebase.firestore.FieldValue.serverTimestamp()
-            };
-            if (lat) { clientData.lat = lat; clientData.lng = lng; }
-
-            batch.set(docRef, clientData, { merge: true });
-            count++;
-            if (count % 400 === 0) { await batch.commit(); batch = db.batch(); }
-        }
-        await batch.commit();
-        log(`✅ Master List Updated (${count})`);
-        document.getElementById('btnUpload').disabled = false;
-        document.getElementById('btnUpload').classList.remove('disabled-state');
-        document.getElementById('btnUpload').innerText = "Start Import";
+        });
+        log(`Loaded ${Object.keys(map).length} Franchise Owners.`);
+        return map;
     }
 
-    async function uploadHistoryBook(data, headers) {
-        log("Uploading History...");
-        if(!headers.includes('Client')) return alert("Missing 'Client' column");
-        const doGeo = document.getElementById('geoEnabled').checked;
+    // --- 1. IMPROVED ACTIVE MASTER LIST IMPORT (UPSERT) ---
+async function uploadMasterList(data) {
+log(`Starting Active Master List Sync (${data.length} records)...`);
+const doGeo = document.getElementById('geoEnabled').checked;
+
+// 1. Get Owner Map
+const franMap = await getFranIdMap();
+
+let batch = db.batch();
+let count = 0;
+let updatedCount = 0;
+let orphanCount = 0; // Track accounts with no owner
+
+for (const row of data) {
+    const pid = row['Client ID'] || row['Clientid'];
+    if (!pid) continue;
+
+    // Formatting
+    const addr = (row['Site Address'] || '').trim();
+    const city = (row['Site City'] || '').trim();
+    const state = (row['Site State'] || '').trim() || 'PA';
+    const zip = (row['Site Zip'] || '').trim();
+    const fullAddress = [addr, city, state, zip].filter(Boolean).join(', ');
+    const franId = (row['Fran ID'] || '').trim().toUpperCase();
+
+    // Geocoding Logic
+    let lat = null, lng = null;
+    if (doGeo && addr.length > 3) {
+        await sleep(650);
+        const coords = await getCoordinates(addr, city, state, zip);
+        if (coords) { lat = coords.lat; lng = coords.lng; log(`📍 Pin found for: ${pid}`); }
+    }
+
+    // Data Object
+    const clientData = {
+        pid: pid,
+        status: 'Active',
+        name: row['Service Loc'] || row['Service Location Name'] || '',
+        address: fullAddress,
+        street: addr, city: city, state: state, zip: zip,
+        revenue: parseFloat((row['Recur Amt']||'0').replace(/[$,]/g, '')),
+        contactName: row['Contact Name'] || '',
+        contactPhone: row['Contact Phone'] || '',
+        contactEmail: row['Contact Email'] || '',
+        franId: franId,
+        startDate: formatDate(row['Start Date']),
+        endDate: null,
+        inactiveReason: null,
+        lastImportedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    if (lat) { clientData.lat = lat; clientData.lng = lng; }
+
+    // 1. Update ADMIN Master List
+    const masterRef = db.collection('master_client_list').doc(String(pid).trim());
+    batch.set(masterRef, clientData, { merge: true });
+
+    // 2. Update FRANCHISE OWNER List
+    const ownerEmail = franMap[franId];
+    if (ownerEmail) {
+        const accRef = db.collection('accounts').doc(`ACC_${pid}`);
+        batch.set(accRef, {
+            ...clientData,
+            owner: ownerEmail,
+        }, { merge: true });
+    } else {
+        // NEW: Log a warning if the link fails!
+        log(`⚠️ ORPHAN WARNING: Client ${pid} (${clientData.name}) added to Master, but Fran ID '${franId}' has no matching Owner in DB.`, 'warn');
+        orphanCount++;
+    }
+
+    count++;
+    updatedCount++;
+
+    if (count % 400 === 0) {
+        await batch.commit();
+        batch = db.batch();
+        log(`Batch ${count/400} committed...`);
+    }
+}
+await batch.commit();
+log(`✅ Sync Complete. Upserted ${updatedCount} records.`, 'success');
+if(orphanCount > 0) log(`⚠️ ${orphanCount} accounts were NOT assigned to franchisees (Check Fran IDs).`, 'warn');
+resetUI();
+}
+
+    // --- 2. ROBUST CANCELLED LIST IMPORT (FORCE INACTIVE) ---
+async function uploadCancelledList(data) {
+log(`Starting Cancelled List Import (${data.length} records)...`);
+
+// DEBUG: Show us what headers the script actually sees in the first row
+if (data.length > 0) {
+    console.log("Headers detected:", Object.keys(data[0]));
+    log(`ℹ️ Debug: First row headers are: [${Object.keys(data[0]).join(', ')}]`);
+}
+
+let batch = db.batch();
+let count = 0;
+let skippedCount = 0;
+
+for (const row of data) {
+    // 1. ROBUST ID CHECK: Check all common names for the ID column
+    const pid = row['Client ID'] || row['Clientid'] || row['PID'] || row['Property ID'] || row['Account'] || row['id'];
+
+    if (!pid) {
+        skippedCount++;
+        continue; // Skip if we still can't find an ID
+    }
+
+    const franId = (row['Fran ID'] || row['FranID'] || '').trim().toUpperCase();
+    const cancelDateRaw = row['Cancel Date'] || row['CancelDate'];
+    const formattedCancelDate = formatDate(cancelDateRaw);
+
+    // Basic data cleaning
+    const addr = (row['Site Address'] || row['Address'] || '').trim();
+    const city = (row['Site City'] || row['City'] || '').trim();
+    const state = (row['Site State'] || row['State'] || '').trim() || 'PA';
+    const zip = (row['Site Zip'] || row['Zip'] || '').trim();
+    const fullAddress = [addr, city, state, zip].filter(Boolean).join(', ');
+
+    // 2. Prepare Payload
+    const inactivePayload = {
+        pid: String(pid).trim(), // Ensure ID is a string
+        name: row['Service Loc'] || row['Service Location Name'] || '',
+        address: fullAddress,
+        franId: franId,
+
+        // KEY STATUS UPDATES
+        endDate: formattedCancelDate || firebase.firestore.FieldValue.serverTimestamp(),
+        status: 'Inactive', // FORCE INACTIVE
+        inactiveReason: 'Imported from Cancelled List',
+        lastImportedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    // 3. Update ADMIN Master List
+    const masterRef = db.collection('master_client_list').doc(inactivePayload.pid);
+    batch.set(masterRef, inactivePayload, { merge: true });
+
+    // 4. FORCE UPDATE Franchisee Account (Blind Upsert)
+    // We find the account by PID and force it Inactive.
+    const accRef = db.collection('accounts').doc(`ACC_${inactivePayload.pid}`);
+
+    const accPayload = {
+        status: 'Inactive',
+        endDate: inactivePayload.endDate,
+        inactiveReason: inactivePayload.inactiveReason,
+        lastImportedAt: inactivePayload.lastImportedAt
+    };
+
+    if (inactivePayload.name) accPayload.name = inactivePayload.name;
+    if (inactivePayload.revenue) accPayload.revenue = parseFloat((row['Recur Amt']||'0').replace(/[$,]/g, ''));
+
+    batch.set(accRef, accPayload, { merge: true });
+
+    count++;
+    if (count % 400 === 0) {
+        await batch.commit();
+        batch = db.batch();
+        log(`Processed ${count} rows...`);
+    }
+}
+
+if (count > 0) {
+    await batch.commit();
+    log(`✅ Cancelled Import Complete. FORCED ${count} records to Inactive.`, 'success');
+} else {
+    log(`❌ Error: Could not find any valid IDs. Check the debug log above for header names.`, 'error');
+}
+
+if (skippedCount > 0) {
+    log(`⚠️ Skipped ${skippedCount} rows (Missing 'PID' or 'Client ID').`, 'warn');
+}
+
+resetUI();
+}
+
+    // --- 3. LEGACY HISTORY IMPORT ---
+    async function uploadHistoryBook(data) {
+        log("Uploading Legacy History...");
         let batch = db.batch(); let count = 0; let batchCount = 0;
 
         for (const row of data) {
-            const clientId = row['Client']; if (!clientId) continue;
+            const clientId = row['Client'];
+            if (!clientId) continue;
 
-            // Lookup Master
-            let masterData = {};
-            try {
-                const snap = await db.collection('master_client_list').doc(String(clientId).trim()).get();
-                if(snap.exists) masterData = snap.data();
-            } catch(e) {}
-
-            const finalName = masterData.name || `Client ${clientId}`;
-            const finalAddr = masterData.address || 'Address Lookup Failed';
-            let lat = masterData.lat || null;
-            let lng = masterData.lng || null;
-
-            if (doGeo && !lat && finalAddr.length > 5) {
-                await sleep(600);
-                // Fallback using single string if master data missing
-                const coords = await getCoordinates(finalAddr, '', '', '');
-                if (coords) { lat = coords.lat; lng = coords.lng; log(`📍 Fallback Pin: ${clientId}`); }
-            }
-
-            // Create Account Doc
             const accRef = db.collection('accounts').doc(`ACC_${clientId}`);
             const accData = {
-                pid: clientId, name: finalName, address: finalAddr,
+                pid: clientId,
+                name: `Client ${clientId}`,
                 revenue: parseFloat((row['Recur Amt']||'0').replace(/[$,]/g, '')),
                 startDate: formatDate(row['Start Date']),
                 status: 'Active',
-                contactName: masterData.contactName || '', contactPhone: masterData.contactPhone || '',
-                contactEmail: masterData.contactEmail || '', owner: ALLOWED_ADMIN_EMAIL,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-
-                // Copy split fields if available
-                street: masterData.street || '',
-                city: masterData.city || '',
-                state: masterData.state || '',
-                zip: masterData.zip || ''
+                owner: ALLOWED_ADMIN_EMAIL,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
             };
-            if(lat) { accData.lat = lat; accData.lng = lng; }
 
             batch.set(accRef, accData, { merge: true });
             count++; batchCount++;
             if (batchCount >= 400) { await batch.commit(); batch = db.batch(); batchCount = 0; }
         }
         await batch.commit();
-        log(`✅ Processed ${count} Accounts`);
-        document.getElementById('btnUpload').disabled = false;
-        document.getElementById('btnUpload').classList.remove('disabled-state');
-        document.getElementById('btnUpload').innerText = "Start Import";
+        log(`✅ Processed ${count} Accounts for initial setup.`);
+        resetUI();
     }
 
-    // --- SMART SYNC (Backwards Compatibility) ---
+    // --- SMART SYNC (Maintenance) ---
     async function runSmartSync() {
-        if(!confirm("Attempt to fix missing split-address fields on existing accounts?")) return;
-        log("Running Sync...");
+        if(!confirm("Fix missing split-address fields on existing Franchisee accounts?")) return;
+        log("Running Smart Sync...");
         const snap = await db.collection('master_client_list').get();
         const masterData = {};
         snap.forEach(doc => masterData[doc.id] = doc.data());
@@ -270,34 +382,51 @@
 
         accSnap.forEach(doc => {
             const acc = doc.data();
-            const m = masterData[acc.pid] || masterData[doc.id.replace('ACC_', '')];
+            const pid = acc.pid || doc.id.replace('ACC_', '');
+            const m = masterData[pid];
 
             if (m && m.street && !acc.street) {
                 batch.update(doc.ref, {
                     street: m.street, city: m.city, state: m.state, zip: m.zip,
-                    lat: m.lat, lng: m.lng // Sync pin too
+                    lat: m.lat, lng: m.lng
                 });
                 ops++;
             }
-
             if(ops >= 400) { batch.commit(); batch = db.batch(); ops = 0; }
         });
         if(ops > 0) await batch.commit();
-        log("Sync Done.");
+        log(`✅ Sync Done. Updated ${ops} documents.`);
     }
 
+    // --- UTILS ---
     function formatDate(dateStr) {
-        if(!dateStr) return '';
-        const parts = dateStr.trim().replace(/\//g, '-').split('-');
-        if(parts.length === 3) return `20${parts[2]}-${parts[0].padStart(2,'0')}-${parts[1].padStart(2,'0')}`;
-        return '';
+        if(!dateStr) return null;
+        // Handle MM/DD/YYYY or M/D/YY
+        const parts = dateStr.trim().replace(/-/g, '/').split('/');
+        if(parts.length === 3) {
+            let y = parts[2];
+            if (y.length === 2) y = "20" + y;
+            const m = parts[0].padStart(2,'0');
+            const d = parts[1].padStart(2,'0');
+            return `${y}-${m}-${d}`;
+        }
+        return null; // Invalid date
     }
+
+    function resetUI() {
+        const btn = document.getElementById('btnUpload');
+        btn.disabled = false;
+        btn.classList.remove('disabled-state');
+        btn.innerText = "Start Import";
+    }
+
     async function checkRecordCount() {
-        try { const snap = await db.collection('master_client_list').get(); alert(`Master: ${snap.size}`); } catch(e) { alert(e); }
+        try { const snap = await db.collection('master_client_list').get(); alert(`Master Client List contains: ${snap.size} records.`); } catch(e) { alert(e); }
     }
+
     async function wipeMasterList() {
-        if(!confirm("Wipe Master List?")) return;
-        if(prompt("Type DELETE") !== "DELETE") return;
+        if(!confirm("⚠️ DANGER: Are you sure you want to DELETE the Master Client List?")) return;
+        if(prompt("Type DELETE to confirm") !== "DELETE") return;
         const snap = await db.collection('master_client_list').get();
         let batch = db.batch(); let count = 0;
         for(const doc of snap.docs) {
@@ -305,7 +434,7 @@
             if(count >= 400) { await batch.commit(); batch = db.batch(); count = 0; }
         }
         await batch.commit();
-        alert("Wiped.");
+        alert(`Master Client List Wiped.`);
     }
 </script>
 </body>

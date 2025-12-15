@@ -2,7 +2,6 @@
 
 let editMap = null;
 let editMarker = null;
-let geofenceCircle = null; // Store circle ref
 
 function loadAccountsList() {
   if (!window.currentUser) return;
@@ -44,6 +43,7 @@ function loadAccountsList() {
       const safeName = (a.name || '').replace(/'/g, "\\'");
       const safeAddress = (a.address || '').replace(/'/g, "\\'");
 
+      // Get split address parts (with fallbacks)
       const safeStreet = (a.street || '').replace(/'/g, "\\'");
       const safeCity = (a.city || '').replace(/'/g, "\\'");
       const safeState = (a.state || 'PA').replace(/'/g, "\\'");
@@ -51,9 +51,6 @@ function loadAccountsList() {
 
       const lat = a.lat || 0;
       const lng = a.lng || 0;
-
-      // NEW: Pass geofenceRadius
-      const geofence = a.geofenceRadius || 200;
 
       const isInactive = a.endDate && a.endDate <= today;
 
@@ -70,7 +67,7 @@ function loadAccountsList() {
           const alarmDisplay = a.alarmCode ? `<div style="font-size:0.75rem; color:#ef4444; font-weight:bold; margin-top:2px;">🚨 ${a.alarmCode}</div>` : '';
           const pidDisplay = a.pid ? `<span style="font-size:0.7rem; background:#e0f2fe; color:#0369a1; padding:1px 4px; border-radius:4px; margin-left:5px;">${a.pid}</span>` : '';
 
-          // UPDATE: Pass geofence to showEditAccount
+          // UPDATE: Pass split fields to showEditAccount
           activeRows += `<tr>
             <td><div style="font-weight:600; color:#111827;">${a.name} ${pidDisplay}</div>${contactDisplay}</td>
             <td><div style="color:#4b5563; font-size:0.9rem;">${a.address}</div>${alarmDisplay}</td>
@@ -78,7 +75,7 @@ function loadAccountsList() {
             <td style="text-align:center;">
                 <div class="action-buttons">
                     <button onclick="openSpecsModal('${doc.id}', '${safeName}', 'view')" class="btn-xs btn-specs-view">Specs</button>
-                    <button onclick="showEditAccount('${doc.id}', '${safeName}', '${safeAddress}', '${safeStreet}', '${safeCity}', '${safeState}', '${safeZip}', ${a.revenue||0}, '${a.startDate||''}', '${a.endDate||''}', '${a.contactName||''}', '${a.contactPhone||''}', '${a.contactEmail||''}', '${a.alarmCode||''}', ${lat}, ${lng}, ${geofence})" class="btn-xs btn-edit">Edit</button>
+                    <button onclick="showEditAccount('${doc.id}', '${safeName}', '${safeAddress}', '${safeStreet}', '${safeCity}', '${safeState}', '${safeZip}', ${a.revenue||0}, '${a.startDate||''}', '${a.endDate||''}', '${a.contactName||''}', '${a.contactPhone||''}', '${a.contactEmail||''}', '${a.alarmCode||''}', ${lat}, ${lng})" class="btn-xs btn-edit">Edit</button>
                     <button onclick="deleteAccount('${doc.id}', '${safeName}', false)" class="btn-xs" style="border:1px solid #ef4444; color:#ef4444; background:white;">Cancel</button>
                 </div>
             </td>
@@ -107,12 +104,13 @@ function loadAccountsList() {
 }
 
 // --- EDIT ACCOUNT ---
-// UPDATED: Now accepts geofence
-window.showEditAccount = function(id, name, fullAddr, street, city, state, zip, revenue, startDate, endDate, cName, cPhone, cEmail, alarm, lat, lng, geofenceRadius) {
+// UPDATED: Now accepts split address fields
+window.showEditAccount = function(id, name, fullAddr, street, city, state, zip, revenue, startDate, endDate, cName, cPhone, cEmail, alarm, lat, lng) {
   document.getElementById('editAccountId').value = id;
   document.getElementById('editAccountName').value = name;
 
-  document.getElementById('editAccountStreet').value = street || fullAddr;
+  // Populate Split Fields
+  document.getElementById('editAccountStreet').value = street || fullAddr; // Fallback to full if street missing
   document.getElementById('editAccountCity').value = city || '';
   document.getElementById('editAccountState').value = state || 'PA';
   document.getElementById('editAccountZip').value = zip || '';
@@ -124,9 +122,6 @@ window.showEditAccount = function(id, name, fullAddr, street, city, state, zip, 
   document.getElementById('editContactPhone').value = cPhone || '';
   document.getElementById('editContactEmail').value = cEmail || '';
   document.getElementById('editAccountAlarm').value = alarm || '';
-
-  // NEW: Set Geofence Input
-  document.getElementById('editAccountGeofence').value = geofenceRadius || 200;
 
   document.getElementById('editAccountModal').style.display = 'flex';
 
@@ -178,43 +173,6 @@ window.showEditAccount = function(id, name, fullAddr, street, city, state, zip, 
               isAdmin ? editMarker.dragging.enable() : editMarker.dragging.disable();
           }
       }
-
-      // --- UPDATE CIRCLE FUNCTION ---
-      const updateCircle = (radius) => {
-          const center = [editMarker.getLatLng().lat, editMarker.getLatLng().lng];
-          if (geofenceCircle) editMap.removeLayer(geofenceCircle);
-
-          geofenceCircle = L.circle(center, {
-              color: '#3b82f6',
-              fillColor: '#93c5fd',
-              fillOpacity: 0.2,
-              radius: radius,
-              weight: 2
-          }).addTo(editMap).bindPopup(`Geofence: ${radius}m radius`);
-      };
-
-      // Initial Draw
-      updateCircle(geofenceRadius || 200);
-
-      // Listener for input change
-      const input = document.getElementById('editAccountGeofence');
-      // Remove old listener to avoid stacking
-      const newClone = input.cloneNode(true);
-      input.parentNode.replaceChild(newClone, input);
-
-      newClone.addEventListener('input', (e) => {
-          const val = parseInt(e.target.value) || 200;
-          updateCircle(val);
-      });
-
-      // Update circle position when marker is dragged (Admin only)
-      if (isAdmin) {
-          editMarker.on('drag', function(e) {
-              const r = parseInt(document.getElementById('editAccountGeofence').value) || 200;
-              updateCircle(r);
-          });
-      }
-
   }, 200);
 };
 
@@ -242,9 +200,6 @@ window.setPinToUserLocation = function() {
                 editMarker.setLatLng(newLatLng);
                 editMap.setView(newLatLng, 18);
                 editMarker.bindPopup(`<b>Updated from GPS!</b><br>Accuracy: ~${Math.round(accuracy)}m`).openPopup();
-
-                // Update Geofence Circle
-                if (geofenceCircle) geofenceCircle.setLatLng(newLatLng);
             }
 
             window.showToast("Pin moved to your location!");
@@ -268,6 +223,7 @@ window.saveEditedAccount = async (event) => {
     const id = document.getElementById('editAccountId').value;
     const name = document.getElementById('editAccountName').value.trim();
 
+    // NEW: Get Split Fields
     const street = document.getElementById('editAccountStreet').value.trim();
     const city = document.getElementById('editAccountCity').value.trim();
     const state = document.getElementById('editAccountState').value.trim();
@@ -282,19 +238,15 @@ window.saveEditedAccount = async (event) => {
     const cPhone = document.getElementById('editContactPhone').value.trim();
     const cEmail = document.getElementById('editContactEmail').value.trim();
 
-    // NEW: Get Radius
-    const geofenceRadius = parseInt(document.getElementById('editAccountGeofence').value) || 200;
-
     try {
         const finalLatLng = editMarker ? editMarker.getLatLng() : { lat: 0, lng: 0 };
 
         const updateData = {
             name,
             address: fullAddress,
-            street, city, state, zip,
+            street, city, state, zip, // Save split fields
             revenue, startDate, endDate: endDate || null,
             alarmCode: alarm, contactName: cName, contactPhone: cPhone, contactEmail: cEmail,
-            geofenceRadius, // SAVE RADIUS
             lat: finalLatLng.lat,
             lng: finalLatLng.lng
         };
@@ -302,8 +254,10 @@ window.saveEditedAccount = async (event) => {
         const currentDoc = await db.collection('accounts').doc(id).get();
         const currentData = currentDoc.data();
 
+        // Check if address changed, if so re-geocode
         if (fullAddress !== (currentData.address || '')) {
             try {
+                // STRUCTURED SEARCH
                 const baseUrl = "https://us1.locationiq.com/v1/search.php";
                 const params = new URLSearchParams({
                     key: window.LOCATIONIQ_KEY,
@@ -320,6 +274,7 @@ window.saveEditedAccount = async (event) => {
                 const data = await res.json();
 
                 if (data && data[0]) {
+                    // Update pin if user didn't move it manually
                     if (currentData.lat === finalLatLng.lat && currentData.lng === finalLatLng.lng) {
                         updateData.lat = parseFloat(data[0].lat);
                         updateData.lng = parseFloat(data[0].lon);
@@ -350,7 +305,7 @@ window.saveEditedAccount = async (event) => {
 };
 
 
-// --- DEV FUNCTION: HARD DELETE ONLY MY ACCOUNTS ---
+// --- DEV FUNCTION: SAFE DELETE ONLY MY ACCOUNTS ---
 window.deleteAllAccountsForDev = async function() {
     const ADMIN_EMAIL = 'nate@anagophilly.com';
 
@@ -380,6 +335,8 @@ window.deleteAllAccountsForDev = async function() {
         for (const doc of snap.docs) {
             const data = doc.data();
 
+            // CRITICAL SAFETY CHECK:
+            // Only delete accounts explicitly owned by 'nate@anagophilly.com'.
             if (data.owner === ADMIN_EMAIL) {
                 batch.delete(doc.ref);
                 count++;
@@ -397,7 +354,7 @@ window.deleteAllAccountsForDev = async function() {
             await batch.commit();
         }
 
-        window.showToast(`Deleted ${deletedTotal} active/inactive accounts for ${ADMIN_EMAIL}.`);
+        window.showToast(`Deleted ${deletedTotal} accounts (Yours Only).`);
         loadAccountsList();
         if (typeof loadMap === 'function') loadMap();
 
@@ -600,9 +557,6 @@ window.saveNewAccount = async () => {
     const cPhone = document.getElementById('contactPhone').value.trim();
     const cEmail = document.getElementById('contactEmail').value.trim();
 
-    // NEW: Get Radius
-    const geofenceRadius = parseInt(document.getElementById('accountGeofence').value) || 200;
-
     if (!name || !street || !city || !startDate) return alert('Name, Street, City, and Start Date required');
 
     try {
@@ -629,7 +583,6 @@ window.saveNewAccount = async () => {
             street, city, state, zip, // Save splits too
             revenue, startDate, endDate: endDate || null, alarmCode: alarm,
             contactName: cName, contactPhone: cPhone, contactEmail: cEmail,
-            geofenceRadius, // SAVE RADIUS
             owner: window.currentUser.email,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         };
