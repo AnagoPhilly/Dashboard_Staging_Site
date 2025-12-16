@@ -744,8 +744,7 @@
 </div>
 
 <div id="employeeModal" class="modal">
-    <div class="modal-content">
-        <h2 id="empModalTitle">Add Team Member</h2>
+    <div class="modal-content" style="overflow:visible;"> <h2 id="empModalTitle">Add Team Member</h2>
         <input type="hidden" id="empId" />
 
         <div class="input-wrapper" style="margin-bottom:10px;">
@@ -753,7 +752,7 @@
             <input type="text" id="empName" placeholder="e.g. John Doe" />
         </div>
 
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-bottom:10px;">
             <div class="input-wrapper">
                 <label style="font-size:0.8rem; font-weight:700;" for="empRole">Role</label>
                 <select id="empRole" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
@@ -767,6 +766,23 @@
             <div class="input-wrapper">
                 <label style="font-size:0.8rem; font-weight:700;" for="empWage">Hourly Wage ($)</label>
                 <input type="number" id="empWage" placeholder="15.00" step="0.25" />
+            </div>
+
+            <div class="input-wrapper" style="position:relative;">
+                <label style="font-size:0.8rem; font-weight:700;">Color Tag</label>
+
+                <input type="hidden" id="empColor" value="#2dd4bf" />
+
+                <button type="button" id="colorPickerButton" onclick="toggleColorDropdown(event)"
+                        style="width:100%; height:45px; display:flex; align-items:center; justify-content:space-between; padding:10px; border:1px solid #ddd; border-radius:6px; background:white; cursor:pointer;">
+                    <span id="selectedColorIndicator" style="display:block; width:24px; height:24px; border-radius:4px; background:#2dd4bf; border:1px solid rgba(0,0,0,0.1);"></span>
+                    <span style="font-size:0.8rem; color:#6b7280;">▼</span>
+                </button>
+
+                <div id="colorDropdown" class="color-dropdown-popover">
+                    <div id="colorPaletteGrid">
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -805,9 +821,6 @@
             <button type="button" onclick="sendResetEmail()" class="btn btn-secondary">
                 📧 Send Password Reset Email
             </button>
-            <small style="color:#666; display:block; margin-top:5px; text-align:center; font-size:0.75rem;">
-                Useful if the employee forgets their login.
-            </small>
         </div>
 
         <div class="modal-buttons">
@@ -875,7 +888,13 @@
         </div>
 
         <div id="manualTimeSection" style="background:#f9fafb; padding:15px; border-radius:8px; border:1px dashed #d1d5db; margin-top:20px; margin-bottom:20px; display:none;">
-            <h4 style="margin-top:0; margin-bottom:10px; font-size:0.9rem; color:#b45309;">⚠️ Manual Time Override</h4>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <h4 style="margin:0; font-size:0.9rem; color:#b45309;">⚠️ Manual Time Override</h4>
+                <button type="button" onclick="autoFillCompleted()" class="btn-xs" style="background:#dcfce7; color:#166534; border:1px solid #86efac; padding: 6px 12px; font-size:0.8rem;">
+                    ⚡ Override Completed
+                </button>
+            </div>
 
             <div class="input-wrapper" style="margin-bottom: 10px;">
                 <label for="actDate">Date Worked</label>

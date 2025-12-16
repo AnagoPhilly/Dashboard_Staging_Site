@@ -104,14 +104,12 @@
 /* --- INTERACTIVE GRID HIGHLIGHTS --- */
 
 /* 1. Time Slot Row Highlight (Now fully controlled by JS) */
-
-/* This class is added via JS when the mouse is in the corresponding row */
 .time-slot.active-time {
     background-color: #0d9488; /* Teal primary color */
     color: white;
     font-weight: bold;
     border-top-color: #0f766e;
-    transition: background-color 0.05s ease-out; /* Very fast transition for responsiveness */
+    transition: background-color 0.05s ease-out;
 }
 
 /* We still need the overlay for the row highlight in the grid area */
@@ -129,14 +127,11 @@
     transition: transform 0.15s ease-out, background-color 0.15s ease-out;
 }
 
-/* This is the key change: Target the ::before element when the time slot has the JS-controlled .active-time class */
 .calendar-time-col .time-slot.active-time ~ .calendar-view::before {
     background-color: rgba(13, 148, 136, 0.08); /* Light primary color highlight */
 }
 
-/* Define the highlight transformation for each hour (0 to 29)
-   Position = 40px (header) + (index * 60px) (slot height)
-*/
+/* Define the highlight transformation for each hour (0 to 29) */
 .calendar-time-col .time-slot[data-hour-index="0"].active-time ~ .calendar-view::before { transform: translateY(40px); }
 .calendar-time-col .time-slot[data-hour-index="1"].active-time ~ .calendar-view::before { transform: translateY(100px); }
 .calendar-time-col .time-slot[data-hour-index="2"].active-time ~ .calendar-view::before { transform: translateY(160px); }
@@ -164,60 +159,30 @@
 .calendar-time-col .time-slot[data-hour-index="24"].active-time ~ .calendar-view::before { transform: translateY(1480px); }
 .calendar-time-col .time-slot[data-hour-index="25"].active-time ~ .calendar-view::before { transform: translateY(1540px); }
 .calendar-time-col .time-slot[data-hour-index="26"].active-time ~ .calendar-view::before { transform: translateY(1600px); }
-    /* These indices need to be updated to account for the 30-hour rendering */
 .calendar-time-col .time-slot[data-hour-index="27"].active-time ~ .calendar-view::before { transform: translateY(1660px); }
 .calendar-time-col .time-slot[data-hour-index="28"].active-time ~ .calendar-view::before { transform: translateY(1720px); }
 .calendar-time-col .time-slot[data-hour-index="29"].active-time ~ .calendar-view::before { transform: translateY(1780px); }
 
-
-
-/* 2. Column Hover Highlight (The light green highlight on Tue, 12/9 in the image) */
-
-/* Add a hoverable overlay that appears when mousing over the time slot area */
+/* 2. Column Hover Highlight */
 .day-slots::after {
     content: '';
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-image: repeating-linear-gradient(
-        to bottom,
-        transparent 0px,
-        transparent 59px,
-        rgba(0, 0, 0, 0.05) 59px,
-        rgba(0, 0, 0, 0.05) 60px
-    );
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-image: repeating-linear-gradient(to bottom, transparent 0px, transparent 59px, rgba(0, 0, 0, 0.05) 59px, rgba(0, 0, 0, 0.05) 60px);
     background-size: 100% 60px;
     pointer-events: none;
     transition: background-color 0.1s ease;
 }
 
-/* When hovering over the entire day column (which contains the time slots) */
-.calendar-day-col:hover .day-slots {
-    cursor: pointer;
-    background-color: rgba(13, 148, 136, 0.02);
-}
-
-/* Change the gradient color on hover to highlight the individual slots */
+.calendar-day-col:hover .day-slots { cursor: pointer; background-color: rgba(13, 148, 136, 0.02); }
 .calendar-day-col:hover .day-slots::after {
-    background-image: repeating-linear-gradient(
-        to bottom,
-        rgba(13, 148, 136, 0.05) 0px,
-        rgba(13, 148, 136, 0.05) 59px,
-        rgba(0, 0, 0, 0.08) 59px,
-        rgba(0, 0, 0, 0.08) 60px
-    );
+    background-image: repeating-linear-gradient(to bottom, rgba(13, 148, 136, 0.05) 0px, rgba(13, 148, 136, 0.05) 59px, rgba(0, 0, 0, 0.08) 59px, rgba(0, 0, 0, 0.08) 60px);
     pointer-events: auto;
 }
-
-/* Ensure the time gutter (left column) doesn't participate in the day-column hover effect */
-.calendar-time-col:hover {
-    cursor: default;
-}
+.calendar-time-col:hover { cursor: default; }
 
 
-/* Events (Absolute Positioned) */
+/* --- EVENTS (SHIFTS) --- */
 .day-event {
     position: absolute;
     width: 94%;
@@ -228,57 +193,110 @@
     padding: 2px 4px;
     font-size: 0.75rem;
     overflow: hidden;
-    cursor: pointer;
+    cursor: grab; /* Set initial grab cursor */
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 
-    /* Smooth transitions for hover effect */
     transition: transform 0.2s ease, z-index 0.1s ease, box-shadow 0.2s ease;
     z-index: 1; /* Base z-index */
+
+    /* --- CRITICAL: Prevent text highlight during drag --- */
+    user-select: none;
+    -moz-user-select: none;
+    -webkit-user-select: none;
 }
 
-/* HOVER EFFECT FOR STACKED CARDS */
-.day-event:hover {
-    transform: scale(1.05); /* Slight pop */
-    z-index: 1000 !important; /* Force to top */
-    box-shadow: 0 8px 20px rgba(0,0,0,0.3); /* Drop shadow */
-    width: 180px !important; /* Force width to be readable */
-    height: auto !important;
-    min-height: 60px;
+/* Cursor change when active (dragging) */
+.day-event:active { cursor: grabbing !important; }
+
+/* DRAG & DROP STYLES */
+.resize-handle {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 10px;
+    cursor: ns-resize; /* North-South resize cursor */
+    z-index: 500;
+}
+
+.day-event:hover .resize-handle {
+    background: rgba(0,0,0,0.05);
+    border-bottom: 2px solid rgba(0,0,0,0.2);
+}
+
+.day-event.dragging {
+    opacity: 0.8;
+    z-index: 1000 !important;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+    cursor: grabbing;
+    transition: none; /* Disable transition for smooth following */
+}
+
+/* --- FIX: HOVER EFFECT --- */
+/* Expanded width for better readability, but NO height shrinking! */
+.day-event:not(:has(.resize-handle:hover)):hover {
+    transform: scale(1.05);
+    z-index: 1000 !important;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    width: 180px !important;
+    min-height: 60px !important;
     white-space: normal;
 }
 
+/* --- FIX: STABILITY WHEN RESIZING --- */
+/* If hovering the resize handle, DO NOT transform or change dimensions */
+.day-event:has(.resize-handle:hover) {
+    z-index: 500 !important; /* Keep above neighbors */
+    transform: none !important;
+    width: 94% !important; /* Keep original width */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+}
 
 .event-time { font-weight: 700; color: #1e40af; font-size: 0.7rem; margin-bottom: 2px; }
 .event-title { font-weight: 600; color: #1e3a8a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .event-meta { color: #6b7280; font-size: 0.7rem; margin-top: 2px; }
 
 /* --- UPDATED STATUS COLORS --- */
-
-/* Scheduled (Default) */
 .day-event.scheduled .event-time { color: #1e40af; }
 
-/* Working (Started) -> BLUE */
+/* STARTED -> GREY */
 .day-event.active {
-    background: #eff6ff;
-    border-left-color: #3b82f6;
+    background: #f3f4f6; /* Light Grey */
+    border-left-color: #9ca3af; /* Darker Grey Border */
+    color: #4b5563; /* Dark Grey Text */
 }
-.day-event.active .event-time { color: #1d4ed8; }
+.day-event.active .event-time { color: #374151; }
 
-/* Late -> RED */
-.day-event.late {
-    background: #fee2e2;
-    border-left-color: #ef4444;
-}
+.day-event.late { background: #fee2e2; border-left-color: #ef4444; }
 .day-event.late .event-time { color: #991b1b; }
-
-/* Completed -> GREEN */
-.day-event.done {
-    background: #dcfce7;
-    border-left-color: #10b981;
-    opacity: 1;
-}
+.day-event.done { background: #dcfce7; border-left-color: #10b981; opacity: 1; }
 .day-event.done .event-time { color: #065f46; }
 
+/* --- TODAY COLUMN HIGHLIGHT (WEEK/DAY VIEW) --- */
+.calendar-day-col.today-active {
+    background-color: #f0fdfa !important;
+    border-left: 1px solid #ccfbf1;
+    border-right: 1px solid #ccfbf1;
+}
+.calendar-day-col.today-active .cal-header {
+    background-color: #ccfbf1;
+    color: #0f766e;
+    border-bottom: 2px solid #0d9488;
+    font-weight: 800;
+}
+
+/* --- MONTH VIEW TODAY HIGHLIGHT --- */
+.month-day.today-active {
+    background-color: #f0fdfa !important;
+    box-shadow: inset 0 0 0 2px #0d9488;
+    z-index: 5;
+}
+.month-day.today-active .month-date-num {
+    color: #0d9488;
+    font-weight: 900;
+    font-size: 1.1rem;
+    text-decoration: underline;
+}
 
 /* --- MONTH VIEW (Classic Grid) --- */
 .calendar-month-view {
@@ -347,9 +365,10 @@
     border-left: 3px solid #3b82f6;
 }
 
-.month-event.active { background: #eff6ff; color: #1d4ed8; border-left-color: #3b82f6; }
-.month-event.done { background: #dcfce7; color: #065f46; border-left-color: #10b981; text-decoration: none; }
-.month-event.late { background: #fee2e2; color: #991b1b; border-left-color: #ef4444; }
+.month-event.active { background: #f3f4f6; color: #4b5563; border-left-color: #9ca3af; } /* Grey for Started */
+.month-event.done { background: #dcfce7; color: #065f46; border-left-color: #10b981; text-decoration: none; } /* Green for Completed */
+.month-event.late { background: #fee2e2; color: #991b1b; border-left-color: #ef4444; } /* Red for Late */
+
 
 .month-add-btn {
     position: absolute;
@@ -374,33 +393,62 @@
 .month-add-btn:hover { background: var(--primary); color: white; }
 
 /* --- RECURRENCE SELECTOR STYLES --- */
-.day-btn-circle {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    border: 1px solid #d1d5db;
+.day-btn-circle { width: 32px; height: 32px; border-radius: 50%; border: 1px solid #d1d5db; background: white; color: #6b7280; font-weight: 700; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
+.day-btn-circle:hover { background: #f3f4f6; border-color: #9ca3af; }
+.day-btn-circle.selected { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 2px 4px rgba(13, 148, 136, 0.3); }
+
+
+/* --- NEW: COLOR PALETTE STYLES (For Modal Dropdown) --- */
+
+/* The Floating Popover Container */
+.color-dropdown-popover {
+    position: absolute;
+    top: 100%; /* Position below the button */
+    left: 0;
+    width: 280px;
     background: white;
-    color: #6b7280;
-    font-weight: 700;
-    font-size: 0.8rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 1000;
+    display: none;
+    margin-top: 5px;
+}
+
+.color-dropdown-popover.active {
+    display: block;
+}
+
+/* The Grid inside the dropdown */
+#colorPaletteGrid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr); /* 5 columns = 4 rows for 20 colors */
+    gap: 8px;
+    padding: 15px; /* Add padding here, removed from dropdown container */
+}
+
+/* Individual Color Dots in the Grid */
+.color-dot {
+    width: 35px; /* Larger size for easy clicking */
+    height: 35px;
+    border-radius: 50%;
+    border: 2px solid transparent;
     cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    transition: transform 0.1s;
+    flex-shrink: 0;
 }
 
-.day-btn-circle:hover {
-    background: #f3f4f6;
-    border-color: #9ca3af;
+.color-dot:hover {
+    transform: scale(1.15);
+    box-shadow: 0 0 0 2px rgba(0,0,0,0.2);
 }
 
-.day-btn-circle.selected {
-    background: var(--primary);
-    color: white;
-    border-color: var(--primary);
-    box-shadow: 0 2px 4px rgba(13, 148, 136, 0.3);
+.color-dot.selected {
+    transform: scale(1.15);
+    border-color: #374151; /* Dark border to show active selection */
+    box-shadow: 0 0 5px rgba(0,0,0,0.3);
 }
+
 
 /* --- REPEAT BUTTON STYLE --- */
 .hidden-checkbox { display: none; }
@@ -415,9 +463,8 @@
     border-radius: 8px;
     font-weight: 700;
     color: #4b5563;
-    cursor: pointer;
-    transition: all 0.2s;
     user-select: none;
+    transition: all 0.2s;
 }
 
 .btn-repeat-toggle:hover {

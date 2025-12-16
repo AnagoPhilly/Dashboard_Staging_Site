@@ -1,161 +1,87 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>CleanDash | Team Portal</title>
+<div class="modal-content">
+    <h2 id="empModalTitle">Add Team Member</h2>
+    <input type="hidden" id="empId" />
 
-    <link rel="stylesheet" href="style.css" />
-
-    <style>
-        /* Portal-Specific Overrides */
-        .app-container { flex-direction: column; }
-        .sidebar { width: 100%; height: auto; flex-direction: row; justify-content: space-between; padding: 0.5rem 1rem; }
-        .nav { display: none; } /* Hide standard nav menus */
-        .main-content { padding: 1rem; }
-        .logout-btn { background: #374151; border: 1px solid #4b5563; padding: 5px 15px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; color: white; }
-
-        /* Mobile Calendar Tweaks (Ensuring a scrollable horizontal week view) */
-        /* --- REQUIRED STYLES FOR MOBILE WEEK VIEW --- */
-        .scheduler-grid {
-            min-height: 500px;
-            display: flex; /* Display columns horizontally */
-            overflow-x: scroll; /* Allow horizontal scrolling */
-            gap: 1px; /* Reduce gap to 1px for month view compatibility */
-            padding-bottom: 10px;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            background: #e5e7eb; /* Background for month view gap */
-        }
-        .calendar-col {
-            flex: 0 0 130px; /* Fixed width for each day column in week view */
-            min-height: 480px; /* Ensure columns are tall */
-            background: white;
-            border-right: 1px solid #f3f4f6; /* Separator for week view */
-        }
-        .cal-header {
-            font-size: 0.8rem;
-            text-align: center;
-            padding: 8px 5px;
-            background: #f9fafb;
-            border-bottom: 1px solid #e5e7eb;
-            font-weight: 700;
-        }
-        .shift-card {
-            background: #eff6ff; /* Light Blue */
-            border-left: 4px solid #3b82f6;
-            padding: 10px;
-            margin: 8px;
-            border-radius: 6px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            font-size: 0.9rem;
-        }
-        .shift-time { font-weight: 700; color: #1e40af; font-size: 0.8rem; margin-bottom: 4px; }
-        .shift-loc { font-weight: 600; color: #1f2937; margin-bottom: 8px; }
-        .btn-checkin, .btn-clockout {
-            width: 100%;
-            padding: 8px 0;
-            border: none;
-            border-radius: 4px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: background 0.2s;
-            font-size: 0.85rem;
-        }
-        .btn-checkin { background: #0d9488; color: white; }
-        .btn-checkin:hover { background: #0f766e; }
-        .btn-clockout { background: #ef4444; color: white; }
-        .btn-clockout:hover { background: #dc2626; }
-        .status-badge {
-            display: block;
-            text-align: center;
-            padding: 4px;
-            border-radius: 4px;
-            font-weight: 600;
-            font-size: 0.8rem;
-        }
-        .status-badge.completed { background: #dcfce7; color: #065f46; }
-
-        /* Reused Owner Styles for Toggles */
-        .view-toggles {
-            display: flex;
-            background: #f3f4f6;
-            padding: 4px;
-            border-radius: 8px;
-            gap: 4px;
-        }
-        .btn-view-toggle {
-            background: transparent;
-            border: none;
-            padding: 6px 16px;
-            border-radius: 6px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: #6b7280;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .btn-view-toggle.active { background: white; color: var(--primary); box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
-
-
-    </style>
-</head>
-<body>
-
-<div id="appLoading"><div>Loading Schedule...</div><div></div></div>
-
-<div id="app" class="app-container" style="display:none;">
-
-    <div class="sidebar">
-        <div class="sidebar-header" style="border:none; padding:0;">
-            <h1 style="font-size:1.2rem;">CleanDash <span style="font-weight:400; font-size:0.9rem; opacity:0.8;">| Team</span></h1>
-        </div>
-        <div class="logout-btn" onclick="logout()">Logout</div>
+    <div class="input-wrapper" style="margin-bottom:10px;">
+        <label style="font-size:0.8rem; font-weight:700;" for="empName">Full Name</label>
+        <input type="text" id="empName" placeholder="e.g. John Doe" />
     </div>
 
-    <div class="main-content">
-        <div class="page-container" style="max-width: 100%;">
-
-            <div class="content-card">
-                <div class="card-header" style="flex-direction: column; align-items: flex-start; gap: 10px;">
-                    <div style="width:100%; display:flex; justify-content:space-between; align-items:center;">
-                        <div>
-                            <h2 id="welcomeMsg" style="font-size:1.3rem;">My Schedule</h2>
-                            <p id="weekRangeDisplay" style="margin:0; font-size:0.8rem; color:#6b7280;">Loading...</p>
-                        </div>
-                        <div style="background:#f0fdfa; color:#0f766e; padding:5px 10px; border-radius:8px; font-weight:700; font-size:0.9rem; border:1px solid #ccfbf1;">
-                            <span id="totalHoursDisplay">0.0</span> Hrs
-                        </div>
-                    </div>
-
-                    <div class="view-toggles" style="width:100%; justify-content:center; margin-bottom: 5px;">
-                        <button class="btn-view-toggle" onclick="changeView('day')" data-view="day">Day</button>
-                        <button class="btn-view-toggle active" onclick="changeView('week')" data-view="week">Week</button>
-                        <button class="btn-view-toggle" onclick="changeView('month')" data-view="month">Month</button>
-                    </div>
-
-                    <div style="display:flex; gap:10px; width:100%;">
-                        <button class="btn btn-secondary" onclick="changePeriod(-1)" style="flex:1;">← Prev</button>
-                        <button class="btn btn-secondary" onclick="changePeriod(1)" style="flex:1;">Next →</button>
-                    </div>
-                </div>
-
-                <div id="schedulerGrid" class="scheduler-grid"></div>
-            </div>
-
+    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-bottom:10px;">
+        <div class="input-wrapper">
+            <label style="font-size:0.8rem; font-weight:700;" for="empRole">Role</label>
+            <select id="empRole" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                <option value="General Cleaner">General Cleaner</option>
+                <option value="Floor Tech">Floor Tech</option>
+                <option value="Day Porter">Day Porter</option>
+                <option value="Lead/Supervisor">Lead/Supervisor</option>
+                <option value="Applicant">Applicant</option>
+            </select>
         </div>
+        <div class="input-wrapper">
+            <label style="font-size:0.8rem; font-weight:700;" for="empWage">Hourly Wage ($)</label>
+            <input type="number" id="empWage" placeholder="15.00" step="0.25" />
+        </div>
+        <div class="input-wrapper" style="position:relative;">
+            <label style="font-size:0.8rem; font-weight:700;">Color Tag</label>
+            <input type="hidden" id="empColor" value="#2dd4bf" />
+
+            <button type="button" id="colorPickerButton" onclick="toggleColorDropdown(event)"
+                    style="width:100%; height:45px; display:flex; align-items:center; justify-content:space-between; padding:10px; border:1px solid #ddd; border-radius:6px; background:white; cursor:pointer;">
+                <span id="selectedColorIndicator" style="width:18px; height:18px; border-radius:50%; background:#2dd4bf; border:1px solid rgba(0,0,0,0.1);"></span>
+                <svg viewBox="0 0 20 20" fill="currentColor" style="width:18px; height:18px; color:#6b7280;">
+                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+            </button>
+
+            <div id="colorDropdown" class="color-dropdown-popover">
+                <div id="colorPaletteGrid" style="display:grid; grid-template-columns: repeat(5, 1fr); gap:10px; padding:15px;" onclick="selectEmployeeColor(event)">
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="input-wrapper" style="margin-bottom:10px;">
+        <label for="empAddress">Home Address</label>
+        <input type="text" id="empAddress" placeholder="983 Old Eagle School Rd Suite 614, Wayne, PA 19087" />
+    </div>
+
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
+        <div class="input-wrapper">
+            <label for="empEmail">Email (Login)</label>
+            <input type="email" id="empEmail" placeholder="Test@test.com" />
+        </div>
+        <div class="input-wrapper">
+            <label for="empPhone">Phone</label>
+            <input type="text" id="empPhone" placeholder="347-645-1922" />
+        </div>
+    </div>
+
+    <div class="input-wrapper" style="margin-bottom:10px;">
+        <label for="empPassword">Set Initial Password</label>
+        <input type="text" id="empPassword" placeholder="e.g. Welcome2025!" />
+        <small style="color:#6b7280; font-size:0.75rem;">Leave blank if just editing details. Minimum 6 chars.</small>
+    </div>
+
+    <div class="input-wrapper" style="margin-bottom:20px;">
+        <label for="empStatus">Status</label>
+        <select id="empStatus">
+            <option value="Active">Active</option>
+            <option value="Waiting">Waiting List</option>
+            <option value="Inactive">Inactive (Keeps History)</option>
+        </select>
+    </div>
+
+    <div id="resetPasswordContainer" style="margin-bottom:15px; display:none;">
+        <button type="button" onclick="sendResetEmail()" class="btn btn-secondary">
+            📧 Send Password Reset Email
+        </button>
+        <small style="color:#666; display:block; margin-top:5px; text-align:center; font-size:0.75rem;">
+            Useful if the employee forgets their login.
+        </small>
+    </div>
+
+    <div class="modal-buttons">
+        <button onclick="saveEmployee()" class="btn btn-primary">Save Member</button>
+        <button onclick="closeEmployeeModal()" class="cancel">Cancel</button>
     </div>
 </div>
-
-<div id="toast"></div>
-
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-
-<script src="js/utils.js"></script>
-<script src="js/auth.js"></script>
-<script src="js/employee_portal.js"></script>
-
-</body>
-</html>
