@@ -121,8 +121,7 @@
             <div class="page-container">
                 <div class="content-card">
                     <div class="card-header" style="border-bottom:none; margin-bottom:0; padding-bottom:0;">
-                        <h2>Account Map</h2>
-                        <p>Geographic overview of all active service locations.</p>
+
                     </div>
 
                     <div id="dashboardKPIs" class="kpi-scorecard-dashboard">
@@ -658,7 +657,7 @@
 
         <div class="input-wrapper" style="margin-bottom: 10px;">
             <label for="accountGeofence">Geofence Radius (meters)</label>
-            <input type="number" id="accountGeofence" placeholder="200" value="200" />
+            <input type="number" id="accountGeofence" placeholder="50" value="50" />
         </div>
 
         <div class="split-inputs-container">
@@ -681,66 +680,38 @@
 </div>
 
 <div id="editAccountModal" class="modal">
-    <div class="modal-content">
-        <h2>Edit Account</h2>
-        <input type="hidden" id="editAccountId" />
-        <div class="input-wrapper" style="margin-bottom:10px;"><label for="editAccountName">Account Name</label><input type="text" id="editAccountName" /></div>
+    <div class="modal-content" style="max-width: 500px;">
+        <h2 id="editAccountModalTitle">Edit Location</h2>
 
-        <div class="input-wrapper" style="margin-bottom:10px;">
-            <label for="editAccountStreet">Street Address</label>
-            <input type="text" id="editAccountStreet" placeholder="e.g. 123 Main St" />
-        </div>
+        <input type="hidden" id="editAccountId" />
+
         <div class="split-inputs-container">
             <div class="input-wrapper">
-                <label for="editAccountCity">City</label>
-                <input type="text" id="editAccountCity" />
+                <label for="editAccountAlarm">🚨 Alarm/Door Code</label>
+                <input type="text" id="editAccountAlarm" placeholder="e.g. 1234" />
             </div>
-            <div class="input-wrapper" style="flex: 0.5;">
-                <label for="editAccountState">State</label>
-                <input type="text" id="editAccountState" />
-            </div>
-            <div class="input-wrapper" style="flex: 0.8;">
-                <label for="editAccountZip">Zip Code</label>
-                <input type="text" id="editAccountZip" />
+
+            <div class="input-wrapper">
+                <label for="editAccountGeofence">🌐 Geofence (Meters)</label>
+                <input type="number" id="editAccountGeofence" placeholder="50" step="5" min="5" />
             </div>
         </div>
 
-        <div class="split-inputs-container">
-            <div class="input-wrapper"><label for="editAccountRevenue">Monthly Revenue ($)</label><input type="number" id="editAccountRevenue" /></div>
-            <div class="input-wrapper"><label for="editAccountAlarm">Alarm Code</label><input type="text" id="editAccountAlarm" /></div>
-        </div>
+        <div class="input-wrapper">
+            <label>📍 Pin Location (Drag to Adjust)</label>
+            <div id="editAccountMap" style="height: 300px; border-radius: 6px; border: 1px solid #ccc;"></div>
+            <div style="display:flex; justify-content:space-between; margin-top:5px;">
+                <small id="pinHelpText" style="color:#666;">Drag pin to set exact building location.</small>
 
-        <div class="input-wrapper" style="margin-bottom: 10px;">
-            <label for="editAccountGeofence">Geofence Radius (meters)</label>
-            <input type="number" id="editAccountGeofence" placeholder="200" />
-        </div>
-
-        <div class="split-inputs-container">
-            <div class="input-wrapper"><label for="editAccountStartDate">Start Date</label><input type="date" id="editAccountStartDate" /></div>
-            <div class="input-wrapper"><label for="editAccountEndDate">End Date</label><input type="date" id="editAccountEndDate" /><small style="color:#666; font-size:0.7rem;">Set date to mark Inactive</small></div>
-        </div>
-        <div style="border-top:1px dashed #e5e7eb; margin-top:10px; padding-top:10px;">
-            <h4 style="margin:0 0 10px 0; color:#0d9488; font-size:0.9rem;">Client Contact Info</h4>
-            <div class="input-wrapper" style="margin-bottom:10px;"><label for="editContactName">Contact Name</label><input type="text" id="editContactName" /></div>
-            <div class="split-inputs-container">
-                <div class="input-wrapper"><label for="editContactPhone">Phone</label><input type="text" id="editContactPhone" /></div>
-                <div class="input-wrapper"><label for="editContactEmail">Email</label><input type="email" id="editContactEmail" /></div>
             </div>
         </div>
 
-        <div style="margin-top: 15px;">
-            <label style="font-size:0.85rem; font-weight:700; color:#374151;">📍 Location Pin</label>
-            <div id="editAccountMap" style="height: 250px; width: 100%; border-radius: 8px; border: 2px solid #e5e7eb; margin-top: 5px;"></div>
-            <small id="pinHelpText" style="color:#666; font-size:0.75rem; display:block; margin-top:5px;">
-                Pin location is locked. Contact Home Office to adjust.
-            </small>
-        </div>
         <div class="modal-buttons">
-            <button onclick="saveEditedAccount(event)">Save Changes</button>
-            <button onclick="openCancelModal(document.getElementById('editAccountId').value)" class="btn btn-danger">Cancel Account</button>
-            <button onclick="hideEditAccount()" class="cancel">Close</button>
+            <button onclick="saveEditedAccount(event)" class="btn btn-primary">Save Operational Data</button>
+            <button onclick="hideEditAccount()" class="cancel">Cancel</button>
         </div>
     </div>
+</div>
 </div>
 
 <div id="employeeModal" class="modal">

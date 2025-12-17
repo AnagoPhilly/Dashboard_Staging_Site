@@ -686,3 +686,208 @@ input:checked + .slider:before { transform: translateX(22px); }
     .ad-form-grid { grid-template-columns: 1fr; }
     .ad-actions-row { flex-direction: column; }
 }
+
+/* --- MOBILE DASHBOARD FIXES --- */
+@media (max-width: 768px) {
+
+    /* 1. Stack the KPI Cards vertically instead of 3 columns */
+    .kpi-scorecard-dashboard {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    /* 2. Arrange Label and Value side-by-side (Row) instead of stacked (Column) */
+    /* This prevents the dashboard from becoming too tall on mobile */
+    .kpi-dashboard-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between; /* Pushes label left, value right */
+        text-align: left;
+        padding: 15px 20px; /* Comfortable touch target */
+        min-height: auto;
+    }
+
+    /* 3. Adjust Typography for Mobile Context */
+    .kpi-dashboard-item p {
+        margin-bottom: 0; /* Remove bottom margin since it's now side-by-side */
+        font-size: 0.95rem;
+        color: #4b5563;
+        font-weight: 600;
+    }
+
+    .kpi-dashboard-item h3 {
+        font-size: 1.25rem;
+        margin: 0; /* Remove default margins */
+    }
+
+    /* Optional: Fix the Map/List split on mobile too if that is also crowded */
+    .dashboard-split-container {
+        grid-template-columns: 1fr; /* Stack map on top of list */
+        height: auto;
+    }
+
+    .dashboard-map {
+        height: 300px; /* Fixed height for map on mobile */
+    }
+}
+
+/* --- MOBILE DASHBOARD FIXES --- */
+@media (max-width: 768px) {
+
+    /* 1. Stack the KPI boxes vertically so they take full width */
+    .kpi-scorecard-dashboard {
+        display: flex;
+        flex-direction: column;
+        gap: 10px; /* Space between the bubbles */
+    }
+
+    /* 2. Style the individual bubbles */
+    .kpi-dashboard-item {
+        width: 100%; /* Go the whole way across */
+        box-sizing: border-box; /* Ensures padding doesn't break width */
+
+        /* Layout: Label on Left, Value on Right */
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        text-align: left;
+        padding: 15px 20px;
+    }
+
+    /* 3. Clean up the text inside so it fits perfectly */
+    .kpi-dashboard-item p {
+        margin: 0;
+        font-size: 0.9rem;
+        color: #4b5563;
+        flex: 1; /* Allow text to take available space */
+    }
+
+    .kpi-dashboard-item h3 {
+        margin: 0;
+        font-size: 1.3rem;
+        padding-left: 15px; /* Space between text and number */
+        white-space: nowrap; /* Keep number on one line */
+    }
+}
+
+/* --- MOBILE ACCOUNTS TABLE FIX --- */
+@media (max-width: 768px) {
+    /* 1. Make the container scrollable horizontally */
+    #accountsList,
+    #inactiveAccountsList {
+        display: block;
+        width: 100%;
+        overflow-x: auto; /* Enables horizontal scroll */
+        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iPhone */
+        margin-bottom: 20px;
+        border: 1px solid #e5e7eb; /* Optional: adds a border around the scroll area */
+        border-radius: 6px;
+    }
+
+    /* 2. Force the table to be wide enough to read */
+    /* This prevents the text from squishing into unreadable vertical columns */
+    .data-table {
+        min-width: 650px; /* Forces the scrollbar to appear */
+    }
+}
+
+/* --- MOBILE ACCOUNTS TABLE FIX --- */
+@media (max-width: 768px) {
+    /* 1. Make the container scrollable horizontally */
+    #accountsList,
+    #inactiveAccountsList {
+        display: block;
+        width: 100%;
+        overflow-x: auto; /* Enables horizontal scroll */
+        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iPhone */
+        margin-bottom: 20px;
+        border: 1px solid #e5e7eb; /* Optional: adds a border around the scroll area */
+        border-radius: 6px;
+    }
+
+    /* 2. Force the table to be wide enough to read */
+    /* This prevents the text from squishing into unreadable vertical columns */
+    .data-table {
+        min-width: 650px; /* Forces the scrollbar to appear */
+    }
+}
+
+/* --- MOBILE SCHEDULER & HEADER FIXES (NUCLEAR OPTION) --- */
+@media (max-width: 768px) {
+
+    /* 1. Force the Card Header to Stack Vertically */
+    /* This ensures the Title and Buttons are on separate lines */
+    #schedule .card-header {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        height: auto !important;
+        padding-bottom: 15px;
+        gap: 15px;
+    }
+
+    /* 2. Reset the Title Margins */
+    #schedule .card-header h2 {
+        margin: 0 !important;
+        text-align: center;
+        width: 100%;
+    }
+
+    /* 3. Fix the View Toggles (Day/Week) Container */
+    /* Remove any fixed widths and force it to fill the available space */
+    .view-toggles {
+        display: flex !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        background-color: #f3f4f6;
+        padding: 5px;
+        border-radius: 8px;
+        box-sizing: border-box; /* Prevents padding from causing overflow */
+    }
+
+    /* 4. Fix the Individual Buttons */
+    /* Force them to share the space equally (50% each) */
+    .btn-view-toggle {
+        flex: 1 !important;
+        width: 50% !important;
+        text-align: center;
+        padding: 12px 0 !important;
+        margin: 0 !important;
+        font-size: 0.95rem !important;
+        white-space: nowrap; /* Prevents text from wrapping weirdly */
+    }
+
+    /* 5. Fix the Date Controls Row (Arrows/Date/Today) below the header */
+    .scheduler-controls {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 15px !important;
+        width: 100% !important;
+    }
+
+    /* Target the inner groups (Left: Date controls, Right: Add Shift) */
+    .scheduler-controls > div {
+        display: flex !important;
+        width: 100% !important;
+        justify-content: space-between !important;
+        gap: 5px !important;
+        box-sizing: border-box;
+    }
+
+    /* Fix the Date Label text centering */
+    #schedulerDateLabel {
+        flex: 1 !important;
+        text-align: center !important;
+        white-space: nowrap;
+        font-size: 0.9rem !important;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Make buttons touch-friendly but fit on screen */
+    .scheduler-controls .btn {
+        padding: 10px 12px !important;
+        font-size: 0.85rem !important;
+    }
+}
