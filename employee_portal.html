@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CleanDash | Staff Portal</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="scheduler.css">
+
+    <style>
+        /* --- PORTAL LAYOUT OVERRIDES --- */
+        body {
+            background-color: #f3f4f6;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .portal-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 10px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .scheduler-container {
+            flex: 1;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-height: 0;
+            position: relative;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(255,255,255,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            display: none;
+        }
+        .loading-overlay.active { display: flex; }
+
+        /* OUTLOOK MONTH GRID STYLES */
+        .month-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            grid-template-rows: 30px repeat(6, 1fr);
+            height: 100%;
+            border-left: 1px solid #e5e7eb;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .month-header {
+            background: #f9fafb;
+            font-weight: 700;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            color: #6b7280;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-right: 1px solid #e5e7eb;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .month-day {
+            border-right: 1px solid #e5e7eb;
+            border-bottom: 1px solid #e5e7eb;
+            background: white;
+            padding: 4px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .month-day.other-month { background: #f9fafb; color: #d1d5db; }
+        .month-day.today { background: #f0fdfa; }
+
+        .month-label {
+            font-weight: 700;
+            font-size: 0.85rem;
+            margin-bottom: 4px;
+            text-align: right;
+        }
+
+        .month-event {
+            font-size: 0.7rem;
+            padding: 2px 4px;
+            border-radius: 3px;
+            margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .month-event.completed { background: #dcfce7; color: #166534; }
+        .month-event.started { background: #dbeafe; color: #1e40af; }
+        .month-event.scheduled { background: #f3f4f6; color: #374151; }
+
+        @media (max-width: 768px) {
+            .month-label { font-size: 0.75rem; }
+            .month-header { font-size: 0.7rem; }
+            .month-event { font-size: 0.65rem; padding: 1px 2px; }
+        }
+    </style>
+
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-HBLV"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-HBLV');
+    </script>
+</head>
+<body class="portal-body">
+
+<div id="empApp" style="display: none;">
+    <div class="portal-container">
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <div>
+                <h2 id="welcomeMsg" style="margin:0; font-size:1.2rem;">My Schedule</h2>
+                <p style="margin:0; font-size:0.8rem; color:#666;">Total Hours: <span id="totalHoursDisplay">0</span></p>
+            </div>
+            <button onclick="logout()" class="btn btn-secondary" style="padding: 5px 10px; font-size:0.8rem;">Log Out</button>
+        </div>
+
+        <div class="content-card" style="padding: 10px; margin-bottom: 10px; flex-shrink: 0;">
+            <div class="card-header" style="border:none; padding:0; margin:0; flex-direction: row; justify-content: space-between;">
+
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <button class="btn btn-secondary" onclick="changePeriod(-1)">←</button>
+                    <div id="weekRangeDisplay" style="font-weight:700; font-size:0.9rem; text-align:center; min-width:100px;">Loading...</div>
+                    <button class="btn btn-secondary" onclick="changePeriod(1)">→</button>
+                </div>
+
+                <div class="view-toggles">
+                    <button class="btn-view-toggle" onclick="changeView('day', true)" data-view="day">Day</button>
+                    <button class="btn-view-toggle" onclick="changeView('week', true)" data-view="week">Week</button>
+                    <button class="btn-view-toggle active" onclick="changeView('month', true)" data-view="month">Month</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="schedulerContainer" class="scheduler-container">
+            <div id="gridLoader" class="loading-overlay">
+                <div style="color:#666;">Loading...</div>
+            </div>
+            <div id="schedulerGrid" style="height:100%; overflow:auto;"></div>
+        </div>
+
+    </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<script src="js/utils.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/employee_portal.js"></script>
+
+</body>
+</html>

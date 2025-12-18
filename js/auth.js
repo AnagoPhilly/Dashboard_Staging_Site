@@ -1,4 +1,5 @@
 // js/auth.js
+
 const firebaseConfig = {
   apiKey: "AIzaSyDOOQuFmcvGjCHe8PFT5r2TLYQDaYalubA",
   authDomain: "hail-mary-10391.firebaseapp.com",
@@ -25,119 +26,108 @@ window.currentUser = null;
 
 // --- THE TRAFFIC COP (Role-Based Access Control) ---
 auth.onAuthStateChanged(async user => {
-  const isEmployeePage = window.location.pathname.includes('employee.html');
+  const isPortal = window.location.pathname.includes('employee_portal.html');
   const loginPage = document.getElementById('loginPage');
   const app = document.getElementById('app');
   const appLoading = document.getElementById('appLoading');
 
   if (user) {
-    // Start with the real authenticated user
     window.currentUser = user;
-    console.log("Auth: User detected:", user.email);
-
-    // Elements to update in the Sidebar
-    const nameDisplay = document.getElementById('userNameDisplay');
-    const emailDisplay = document.getElementById('userEmailDisplay');
+    console.log("Auth: User logged in:", user.email);
 
     // -----------------------------------------------------------------
-    // NEW IMPERSONATION LOGIC FOR ADMINS
+    // 1. IMPERSONATION LOGIC (For Admin "View As")
     // -----------------------------------------------------------------
     const urlParams = new URLSearchParams(window.location.search);
     const viewAsEmail = urlParams.get('viewAs');
     const ADMIN_EMAIL = 'nate@anagophilly.com';
     const isImpersonating = viewAsEmail && user.email.toLowerCase() === ADMIN_EMAIL;
 
+    // Elements to update in Sidebar
+    const nameDisplay = document.getElementById('userNameDisplay');
+    const emailDisplay = document.getElementById('userEmailDisplay');
+
     if (isImpersonating) {
         let impersonatedName = viewAsEmail;
-
         try {
-            // Step 1: Find the target user document to get their real UID and Name
+            // Find target user to get their UID
             const ownerSnap = await db.collection('users').where('email', '==', viewAsEmail).limit(1).get();
-
             if (!ownerSnap.empty) {
                 const targetDoc = ownerSnap.docs[0];
                 const ownerData = targetDoc.data();
-
                 if (ownerData.name) impersonatedName = ownerData.name;
 
-                // CRITICAL FIX: We must override the UID so profile/accounts load the TARGET'S data, not the admin's.
-                // We create a proxy object because Firebase User properties are often read-only.
+                // OVERRIDE currentUser so the app thinks we are them
                 window.currentUser = {
-                    uid: targetDoc.id,       // Use the Franchisee's UID
-                    email: viewAsEmail,      // Use the Franchisee's Email
-                    originalAdminEmail: user.email, // Keep track of real admin
-                    // Proxy other methods if needed, though most app logic just needs uid/email
+                    uid: targetDoc.id,
+                    email: viewAsEmail,
+                    originalAdminEmail: user.email,
                     getIdToken: () => user.getIdToken()
                 };
-
-                console.log(`Auth: Impersonation Success. Swapped UID to ${targetDoc.id}`);
+                console.log(`Auth: Impersonating ${impersonatedName}`);
             }
-        } catch (e) {
-             console.warn("Impersonation Lookup Error:", e);
-        }
+        } catch (e) { console.warn("Impersonation Error:", e); }
 
-        console.log(`Auth: Admin Impersonation active. Viewing as: ${impersonatedName}`);
-
-        // Update Sidebar Displays to show the *impersonated name*
         if(nameDisplay) nameDisplay.textContent = `Viewing: ${impersonatedName}`;
-
-        // Show the original admin email in the smaller space
         if(emailDisplay) emailDisplay.textContent = user.email;
     }
-    // -----------------------------------------------------------------
 
-    // 1. Check if they are an EMPLOYEE
+    // -----------------------------------------------------------------
+    // 2. CHECK IF EMPLOYEE
+    // -----------------------------------------------------------------
     const checkEmail = window.currentUser.email;
     const empSnap = await db.collection('employees').where('email', '==', checkEmail).get();
 
     if (!empSnap.empty) {
-        // --- IT IS AN EMPLOYEE ---
-        console.log("Auth: User is an Employee.");
+        // --- USER IS AN EMPLOYEE ---
+        console.log("Auth: Role = Employee");
 
-        if (nameDisplay && empSnap.docs[0].data().name) {
-            nameDisplay.textContent = `Team Member: ${empSnap.docs[0].data().name.split(' ')[0]}`;
+        if (nameDisplay && !isImpersonating && empSnap.docs[0].data().name) {
+             nameDisplay.textContent = empSnap.docs[0].data().name;
         }
-        if (emailDisplay) emailDisplay.textContent = checkEmail;
 
-        if (!isEmployeePage) {
-            window.location.href = 'employee.html';
+        // REDIRECT: If on Dashboard, go to Portal
+        if (!isPortal) {
+            window.location.href = 'employee_portal.html';
             return;
         }
+
+        // If on Portal, we are good.
         return;
     }
 
-    // 2. If not an employee, check if they are an OWNER
-    console.log("Auth: Checking Firestore 'users' collection for UID:", window.currentUser.uid);
-
+    // -----------------------------------------------------------------
+    // 3. CHECK IF OWNER
+    // -----------------------------------------------------------------
     const ownerDoc = await db.collection('users').doc(window.currentUser.uid).get();
 
     if (ownerDoc.exists && ownerDoc.data().role === 'owner') {
-        // --- IT IS AN OWNER ---
-        console.log("Auth: User is an Owner.");
+        // --- USER IS AN OWNER ---
+        console.log("Auth: Role = Owner");
 
         const userData = ownerDoc.data();
-        let name = userData.name || window.currentUser.email;
-
-        // If not impersonating, set name/email as normal
         if (!isImpersonating) {
-            const firstName = name.split(' ')[0];
-            if(nameDisplay) nameDisplay.textContent = `Welcome, ${firstName}!`;
+            if(nameDisplay) nameDisplay.textContent = userData.name || "Owner";
             if(emailDisplay) emailDisplay.textContent = window.currentUser.email;
         }
 
-        if (isEmployeePage) {
-            window.location.href = 'index.html';
-            return;
+        // REDIRECT: If on Portal, go to Dashboard (Unless testing)
+        if (isPortal) {
+             // Allow 'testMode' param to bypass redirect for debugging
+             if (!urlParams.get('testMode')) {
+                 window.location.href = 'index.html';
+                 return;
+             }
         }
 
-        // Show the Owner Dashboard
+        // Show Dashboard
         if (loginPage) loginPage.style.display = 'none';
         if (appLoading) appLoading.style.display = 'none';
         if (app) {
             app.style.display = 'flex';
             if (typeof loadMap === 'function') loadMap();
 
-            // --- NEW: ENSURE ADMIN BUTTON IS RENDERED IMMEDIATELY ---
+            // --- GOD MODE / ADMIN CONTROLS ---
             if (user.email.toLowerCase() === ADMIN_EMAIL) {
                 const adminDiv = document.getElementById('adminControls');
                 const statusLabel = document.getElementById('adminModeStatusLabel');
@@ -151,41 +141,54 @@ auth.onAuthStateChanged(async user => {
                         if (statusLabel) statusLabel.textContent = `STATUS: Viewing ${window.currentUser.email}`;
                         if (toggleButton) {
                             toggleButton.textContent = '🔥 Revert to God Mode';
-                            toggleButton.style.backgroundColor = '#f59e0b';
+                            toggleButton.style.backgroundColor = '#f59e0b'; // Amber
                         }
                     } else {
                         if (statusLabel) statusLabel.textContent = 'STATUS: Dashboard View';
                         if (toggleButton) {
                             toggleButton.textContent = '🔥 Go to God Mode';
-                            toggleButton.style.backgroundColor = '#ef4444';
+                            toggleButton.style.backgroundColor = '#ef4444'; // Red
                         }
                     }
-                } else { // On admin.html
+                } else {
+                    // On admin.html
                     if (statusLabel) statusLabel.textContent = 'STATUS: God Mode Active';
                     if (toggleButton) {
                         toggleButton.textContent = '🔙 Exit to Dashboard';
-                        toggleButton.style.backgroundColor = '#64748b';
+                        toggleButton.style.backgroundColor = '#64748b'; // Gray
                     }
                 }
             }
-            // --- END NEW ADMIN BUTTON LOGIC ---
         }
     } else {
-        // --- UNKNOWN USER (Security Risk) ---
-        console.warn("Auth: User is authenticated but has no role. Signing out.");
-        alert(`Access Denied: Account not authorized.\n\nMissing Firestore Document for UID: ${window.currentUser.uid}`);
-        auth.signOut();
+        // -----------------------------------------------------------------
+        // 4. UNKNOWN USER
+        // -----------------------------------------------------------------
+        console.warn("Auth: User authenticated but no profile found.");
+
+        if (isPortal) {
+             alert("Account not found in Employee Roster.");
+             auth.signOut();
+             window.location.href = 'index.html';
+        } else {
+             alert("Access Denied: No Owner Profile found.");
+             auth.signOut();
+        }
     }
 
   } else {
-    // --- NO USER LOGGED IN ---
+    // -----------------------------------------------------------------
+    // 5. NOT LOGGED IN
+    // -----------------------------------------------------------------
     console.log("Auth: No user.");
 
-    if (isEmployeePage) {
+    // If on Portal, KICK BACK to Login Page (Index)
+    if (isPortal) {
         window.location.href = 'index.html';
         return;
     }
 
+    // If on Index, Show Login Form
     if (loginPage) loginPage.style.display = 'flex';
     if (app) app.style.display = 'none';
     if (appLoading) appLoading.style.display = 'none';
@@ -207,9 +210,12 @@ window.login = () => {
   });
 };
 
-// --- LOGOUT FUNCTION ---
+// --- LOGOUT FUNCTION (UPDATED) ---
 window.logout = () => {
+  // Clear any saved view state so next login starts fresh on "Day View"
+  sessionStorage.clear();
+
   auth.signOut().then(() => {
-    window.location.href = 'index.html';
+      window.location.href = 'index.html';
   });
 };

@@ -927,3 +927,60 @@ input:checked + .slider:before { transform: translateX(22px); }
         margin-bottom: 10px;
     }
 }
+
+/* style.css (Prepend all previous content here...) */
+/* ... existing styles ... */
+
+/* --- EMPLOYEE PORTAL MOBILE STYLES (Added) --- */
+
+.portal-body {
+    background-color: #f3f4f6;
+}
+
+.portal-container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 15px;
+}
+
+.portal-header {
+    display: flex; justify-content: space-between; align-items: center;
+    background: white; padding: 15px; border-radius: 12px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 20px;
+}
+
+.job-card {
+    background: white; border-radius: 12px; padding: 20px;
+    margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    border-left: 5px solid #ccc; position: relative;
+}
+.job-card.status-scheduled { border-left-color: #3b82f6; } /* Blue */
+.job-card.status-started { border-left-color: #eab308; }   /* Yellow */
+.job-card.status-completed { border-left-color: #10b981; } /* Green */
+
+.job-time { font-size: 1.2rem; font-weight: 800; color: #1f2937; }
+.job-location { font-size: 1.1rem; color: #4b5563; margin-top: 5px; }
+.job-address { font-size: 0.9rem; color: #6b7280; margin-bottom: 15px; display: block; text-decoration: none; }
+
+.btn-large {
+    width: 100%; padding: 15px; border-radius: 8px; font-size: 1.1rem; font-weight: bold; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+}
+.btn-clock-in { background: #2563eb; color: white; }
+.btn-clock-out { background: #ef4444; color: white; }
+
+/* Week Selector */
+.week-nav {
+    display: flex; justify-content: space-between; align-items: center;
+    background: white; padding: 10px; border-radius: 8px; margin-bottom: 15px;
+}
+
+/* Portal Login */
+#empLoginPage {
+    height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: #f3f4f6; flex-direction: column;
+}
+.login-card {
+    background: white; padding: 30px; border-radius: 15px;
+    width: 90%; max-width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
