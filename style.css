@@ -891,3 +891,39 @@ input:checked + .slider:before { transform: translateX(22px); }
         font-size: 0.85rem !important;
     }
 }
+
+/* --- FIX FOR MOBILE MODAL SCROLLING --- */
+@media (max-width: 768px) {
+    .modal {
+        align-items: flex-start; /* Aligns modal to top so it doesn't get cut off when scrolling */
+        padding-top: 20px;       /* Adds a little breathing room at the top */
+        overflow-y: auto;        /* Ensures the background can scroll if needed */
+    }
+
+    .modal-content {
+        max-height: 85vh;       /* Limits modal height to 85% of the screen */
+        overflow-y: auto;       /* Adds a scrollbar INSIDE the white box */
+        width: 95%;             /* Uses more width on small screens */
+        margin-bottom: 50px;    /* Ensures bottom buttons aren't covered by browser nav bars */
+    }
+}
+
+/* Ensure Scheduler Header wraps on mobile so buttons stay visible */
+@media (max-width: 900px) {
+    #scheduler .card-header {
+        flex-wrap: wrap;
+        gap: 15px;
+        justify-content: center;
+        text-align: center;
+    }
+
+    #scheduler .card-header > div {
+        width: 100%; /* Force each section to take full width line */
+        justify-content: center;
+    }
+
+    #scheduler .view-toggles {
+        order: 2; /* Keep toggles in middle or top */
+        margin-bottom: 10px;
+    }
+}

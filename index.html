@@ -201,7 +201,7 @@
             <div class="page-container">
                 <div class="content-card">
                     <div class="card-header">
-                        <div>
+                        <div style="min-width: 150px;">
                             <h2>Schedule</h2>
                             <p id="weekRangeDisplay">Loading dates...</p>
                         </div>
@@ -213,13 +213,15 @@
                         </div>
 
                         <div style="display:flex; gap:10px; align-items:center;">
-                            <button onclick="openShiftModal(new Date())" class="btn btn-primary" style="flex-shrink: 0;">+ Add Shift</button>
-                            <button class="btn btn-secondary" onclick="changePeriod(-1)">← Prev</button>
-                            <button class="btn btn-secondary" onclick="changePeriod(1)">Next →</button>
+                            <button onclick="openShiftModal(new Date())" class="btn btn-primary" style="white-space:nowrap;">+ Add Shift</button>
+                            <button class="btn btn-secondary" onclick="changePeriod(-1)">←</button>
+                            <button class="btn btn-secondary" onclick="changePeriod(1)">→</button>
                         </div>
                     </div>
 
-                    <div id="alertControls" class="alert-info-block" style="margin-bottom: 1.5rem; padding: 1rem; border-radius: 8px; display: none; align-items: center; justify-content: space-between;">
+                    <div id="schedulerGrid" class="scheduler-container"></div>
+
+                    <div id="alertControls" class="alert-info-block" style="margin-top: 1.5rem; padding: 1rem; border-radius: 8px; display: none; align-items: center; justify-content: space-between;">
                         <span class="alert-info-label">Email Alert Settings:</span>
 
                         <div style="display: flex; gap: 15px; align-items:center;">
@@ -237,7 +239,7 @@
                             </div>
                         </div>
                     </div>
-                    <div id="schedulerGrid" class="scheduler-container"></div>
+
                 </div>
             </div>
         </div>
