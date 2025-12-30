@@ -984,3 +984,97 @@ input:checked + .slider:before { transform: translateX(22px); }
     background: white; padding: 30px; border-radius: 15px;
     width: 90%; max-width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
 }
+
+/* --- FINAL MOBILE SCROLL FIX --- */
+@media (max-width: 768px) {
+
+    /* 1. Unlock the Main App Wrapper */
+    .app-container, body, html {
+        height: auto !important;
+        min-height: 100% !important;
+        overflow: visible !important; /* Allow content to spill out */
+    }
+
+    /* 2. Main Content Area */
+    .main-content {
+        width: 100vw !important;
+        overflow-x: hidden; /* Prevent the whole page from sliding left/right */
+    }
+
+    /* 3. TARGET THE TEAM LIST CONTAINERS SPECIFICALLY */
+    /* This creates the "Scroll Window" for the tables */
+    #activeEmployeesList,
+    #waitingEmployeesList,
+    #inactiveEmployeesList,
+    #accountsList,       /* Also fix Accounts tab */
+    #payrollTableContainer, /* Also fix Payroll tab */
+    .scheduler-container {
+        display: block !important;
+        width: 100% !important; /* Fit the screen width... */
+        overflow-x: scroll !important; /* ...but scroll internally */
+        -webkit-overflow-scrolling: touch; /* Smooth iPhone scroll */
+        margin-bottom: 20px;
+        border: 1px solid #eee;
+        background: white;
+    }
+
+    /* 4. FORCE THE TABLES TO BE WIDE */
+    /* 'max-content' forces the table to extend past the screen edge */
+    table {
+        width: max-content !important;
+        min-width: 800px !important; /* Backup width */
+    }
+
+    /* 5. Fix Cells so they don't wrap text */
+    th, td {
+        white-space: nowrap !important; /* Force text to stay on one line */
+        padding: 10px 15px !important;  /* Add padding to make finger taps easier */
+    }
+}
+
+/* --- TEAM MANAGEMENT SPECIFIC FIX (MOBILE) --- */
+@media (max-width: 768px) {
+
+    /* 1. Reset the parent container padding so lists have room */
+    #employees > div {
+        padding: 0 !important;
+        width: 100vw !important;
+    }
+
+    /* 2. Target the specific Employee List Containers */
+    #activeEmployeesList,
+    #waitingEmployeesList,
+    #inactiveEmployeesList {
+        display: block !important;
+        width: 100vw !important;      /* Full screen width */
+        overflow-x: auto !important;  /* ENABLE SWIPE */
+        -webkit-overflow-scrolling: touch; /* Smooth scroll on iPhone */
+        margin-bottom: 30px;
+        background: white;
+    }
+
+    /* 3. Force the Tables inside to be HUGE */
+    /* We use a hard pixel value (1200px) to guarantee the phone MUST scroll */
+    #activeEmployeesList table,
+    #waitingEmployeesList table,
+    #inactiveEmployeesList table {
+        width: 1200px !important;
+        min-width: 1200px !important;
+        max-width: none !important;
+        table-layout: auto !important;
+    }
+
+    /* 4. Prevent text wrapping to keep columns wide and readable */
+    #employees td,
+    #employees th {
+        white-space: nowrap !important;
+        padding: 12px 15px !important;
+        font-size: 14px !important;
+    }
+
+    /* 5. Ensure the header text doesn't get hidden */
+    #employees h3 {
+        padding-left: 10px;
+        margin-top: 20px;
+    }
+}

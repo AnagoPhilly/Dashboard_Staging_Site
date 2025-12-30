@@ -130,6 +130,9 @@ async function loadMyShifts(employeeId) {
 
         if(hoursDisplay) hoursDisplay.textContent = totalHours.toFixed(2);
 
+        // Update the "Next Shift" text in header
+        updateNextShiftDisplay(jobsForRender);
+
         // Clear grid before rendering new view
         container.innerHTML = '';
 
@@ -143,6 +146,86 @@ async function loadMyShifts(employeeId) {
     } finally {
         if(loader) loader.classList.remove('active');
     }
+}
+
+// --- HELPER: NEXT SHIFT DISPLAY ---
+function updateNextShiftDisplay(jobs) {
+    const now = new Date();
+
+    // Find future shifts that are not completed
+    const upcoming = jobs.filter(j => j.start > now && j.status !== 'Completed');
+
+    // Sort by start time (soonest first)
+    upcoming.sort((a, b) => a.start - b.start);
+
+    // Get or Create the Display Element
+    let nextShiftEl = document.getElementById('nextShiftDisplay');
+    const headerContainer = document.getElementById('welcomeMsg')?.parentElement;
+
+    if (!nextShiftEl && headerContainer) {
+        nextShiftEl = document.createElement('p');
+        nextShiftEl.id = 'nextShiftDisplay';
+        nextShiftEl.style.margin = '5px 0 0 0';
+        nextShiftEl.style.fontSize = '0.9rem';
+        nextShiftEl.style.fontWeight = '700';
+        headerContainer.appendChild(nextShiftEl);
+    }
+
+    if (!nextShiftEl) return;
+
+    if (upcoming.length === 0) {
+        nextShiftEl.textContent = "Next Shift: None Scheduled";
+        nextShiftEl.style.color = '#9ca3af'; // Gray
+        return;
+    }
+
+    const nextJob = upcoming[0];
+
+    // --- DATE COMPARISON LOGIC ---
+    // Reset hours to compare calendar days accurately
+    const todayReset = new Date(now);
+    todayReset.setHours(0,0,0,0);
+
+    const shiftReset = new Date(nextJob.start);
+    shiftReset.setHours(0,0,0,0);
+
+    // Calculate difference in days
+    const diffTime = shiftReset - todayReset;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    let displayText = "";
+    let color = '#0d9488'; // Default Teal
+
+    if (diffDays === 0) {
+        // --- CASE 1: TODAY (Show Countdown) ---
+        const diffMs = nextJob.start - now;
+        const diffHrs = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+        // Helper for pluralization
+        const hrStr = diffHrs === 1 ? 'hour' : 'hours';
+        const minStr = diffMins === 1 ? 'minute' : 'minutes';
+
+        if (diffHrs > 0) {
+            displayText = `${diffHrs} ${hrStr} ${diffMins} ${minStr}`;
+        } else {
+            displayText = `${diffMins} ${minStr}`;
+            // If less than 1 hour away, make it Orange/Warning color
+            color = '#eab308';
+        }
+    } else if (diffDays === 1) {
+        // --- CASE 2: TOMORROW ---
+        const timeStr = nextJob.start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        displayText = `Tomorrow @ ${timeStr}`;
+    } else {
+        // --- CASE 3: FUTURE DATE ---
+        const dateStr = nextJob.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const timeStr = nextJob.start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        displayText = `${dateStr} @ ${timeStr}`;
+    }
+
+    nextShiftEl.style.color = color;
+    nextShiftEl.textContent = `Next Shift: ${displayText}`;
 }
 
 // --- RENDERERS ---

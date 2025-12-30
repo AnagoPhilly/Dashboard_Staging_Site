@@ -130,7 +130,7 @@ function startApp() {
     });
 
     // 4. Trigger initial view load (Auto-click dashboard on load)
-    const initialNavItem = document.querySelector('.nav-item[data-page="dashboard"]');
+    const initialNavItem = document.querySelector('.nav-item[data-page="scheduler"]');
     if (initialNavItem) {
         initialNavItem.click();
     }

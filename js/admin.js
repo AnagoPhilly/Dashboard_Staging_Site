@@ -11,13 +11,33 @@ window.createOwnerDocument = async function(uid, email, name) {
         email: email,
         name: name,
         role: 'owner',
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        isAdmin: false // Default to false
     }, { merge: true });
 }
 
 auth.onAuthStateChanged(async user => {
     // 1. SECURITY GATE
-    if (!user || user.email.toLowerCase() !== ADMIN_EMAIL) {
+    if (!user) {
+        window.location.href = 'index.html';
+        return;
+    }
+
+    // Fetch the user's profile to check for "isAdmin" flag
+    let isAuthorized = false;
+
+    // Hardcoded Super Admin (You)
+    if (user.email.toLowerCase() === ADMIN_EMAIL) {
+        isAuthorized = true;
+    } else {
+        // Check Database Permission for others
+        const doc = await db.collection('users').doc(user.uid).get();
+        if (doc.exists && doc.data().isAdmin === true) {
+            isAuthorized = true;
+        }
+    }
+
+    if (!isAuthorized) {
         alert("⛔ ACCESS DENIED: Authorized Personnel Only.");
         window.location.href = 'index.html';
         return;
@@ -103,12 +123,21 @@ async function loadGodModeData() {
 
         allOwners.forEach(u => {
             const empCount = employeeCounts[u.email] || 0;
+            const isAdmin = u.isAdmin === true;
+
+            // Visuals for Admin Button
+            const adminBtnStyle = isAdmin
+                ? 'background:#10b981; color:white; border:none;'
+                : 'background:#e5e7eb; color:#9ca3af; border:1px solid #d1d5db;';
+            const adminTitle = isAdmin ? 'Revoke Admin Access' : 'Grant Admin Access';
+            const adminIcon = isAdmin ? '🛡️ Admin' : '🛡️ Make Admin';
+
             html += `
-            <div class="user-row">
+            <div class="user-row" style="${isAdmin ? 'border-left: 4px solid #10b981;' : ''}">
                 <div style="flex: 1;">
                     <div style="font-weight: 700; font-size: 1.1rem; color: #111;">
                         ${u.name || 'Unknown Name'}
-                        <span class="badge badge-owner">Owner</span>
+                        ${isAdmin ? '<span class="badge" style="background:#10b981; color:white; font-size:0.7rem;">ADMIN</span>' : '<span class="badge badge-owner">Owner</span>'}
                     </div>
                     <div style="font-size: 0.85rem; color: #666;">${u.email}</div>
                     <div style="font-size: 0.75rem; color: #999; margin-top: 4px;">ID: ${u.id}</div>
@@ -120,6 +149,11 @@ async function loadGodModeData() {
                     <div style="font-size: 0.9rem; color: #444;">$${u.revenue.toLocaleString()}/mo</div>
                 </div>
                 <div>
+                    <button class="btn btn-sm" style="margin-right:5px; font-size:0.75rem; ${adminBtnStyle}"
+                        onclick="toggleAdminAccess('${u.id}', ${isAdmin}, '${u.name}')" title="${adminTitle}">
+                        ${adminIcon}
+                    </button>
+
                     <button class="btn btn-secondary" onclick="impersonateUser('${u.email}')">👁️ View Dashboard</button>
                     <button class="btn btn-danger" style="margin-left:5px; font-size:0.7rem;" onclick="nukeUser('${u.id}', '${u.name}')">🗑️</button>
                 </div>
@@ -136,6 +170,22 @@ async function loadGodModeData() {
         userList.innerHTML = `<div style="color:red; padding:20px;">Error loading data: ${e.message}</div>`;
     }
 }
+
+// --- NEW FUNCTION: TOGGLE ADMIN ---
+window.toggleAdminAccess = async function(uid, currentStatus, name) {
+    const action = currentStatus ? "REVOKE" : "GRANT";
+    if(!confirm(`Are you sure you want to ${action} Admin privileges for ${name}?\n\nThey will be able to access this God Mode panel.`)) return;
+
+    try {
+        await db.collection('users').doc(uid).update({
+            isAdmin: !currentStatus
+        });
+        alert(`Success: ${name} is ${!currentStatus ? 'now an Admin' : 'no longer an Admin'}.`);
+        loadGodModeData();
+    } catch(e) {
+        alert("Error updating permissions: " + e.message);
+    }
+};
 
 // --- VIEW 2: MASTER ACCOUNTS ---
 window.loadMasterAccounts = async function() {

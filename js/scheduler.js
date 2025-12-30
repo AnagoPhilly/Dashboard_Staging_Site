@@ -1,31 +1,30 @@
 // js/scheduler.js
 
-// --- CALENDAR STATE ---
-let currentView = 'day'; // Default to Day View
-let currentDate = new Date();
-let alertedJobs = new Set();
-const alertSound = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-software-interface-start-2574.mp3');
+// --- 1. CONFIGURATION ---
+const START_HOUR = 12; // Start at 12 PM (Noon)
 const HOURS_TO_RENDER = 30;
 const PIXELS_PER_HOUR = 60;
 const SNAP_MINUTES = 15;
 const PIXELS_PER_MINUTE = PIXELS_PER_HOUR / 60;
 const SNAP_PIXELS = SNAP_MINUTES * PIXELS_PER_MINUTE;
 
-// --- STATE GLOBALS ---
+// --- 2. STATE ---
+let currentView = 'month'; // Default to Month View
+let currentDate = new Date();
+let alertedJobs = new Set();
+const alertSound = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-software-interface-start-2574.mp3');
+
+// Globals
 let schedulerSettings = {};
 let currentEmpFilter = 'ALL';
-let showEmployeeColors = false; // TOGGLE STATE
-let employeeColors = {}; // Cache for colors
+let showEmployeeColors = false;
+let employeeColors = {};
 
-// --- NAVIGATION LISTENER: Force "Day View" & "Today" on Tab Click ---
+// --- 3. NAVIGATION LISTENER ---
 document.addEventListener('click', function(e) {
     const navItem = e.target.closest('.nav-item[data-page="scheduler"]');
     if (navItem) {
-        // User clicked the Scheduler tab. Reset state.
-        console.log("CleanDash: Scheduler Tab Clicked - Resetting to Today/Day View");
-        currentView = 'day';
-        currentDate = new Date();
-        // Note: main.js calls loadScheduler() on click, which will use these updated values.
+        loadScheduler();
     }
 });
 
@@ -34,13 +33,10 @@ function normalizeDate(date, view) {
     d.setHours(0, 0, 0, 0);
     if (view === 'week') {
         const day = d.getDay();
-        // Adjust to make Monday the start of the week
-        // If Sunday (0) -> go back 6 days
-        // If Mon(1) -> go back 0 days (1-1) -> logic: day - 1, but +1 for date math
         const diff = d.getDate() - day + (day === 0 ? -6 : 1);
         d.setDate(diff);
     } else if (view === 'month') {
-        d.setDate(1); // Always start at 1st of month for Month View
+        d.setDate(1);
     }
     return d;
 }
@@ -54,11 +50,32 @@ function getLocalYMD(d) {
 
 currentDate = normalizeDate(currentDate, currentView);
 
-// --- MAIN LOAD FUNCTION ---
-
+// --- 4. MAIN LOAD FUNCTION ---
 async function loadScheduler() {
     console.log(`CleanDash: Loading Schedule (${currentView} view)...`);
     const container = document.getElementById('schedulerGrid');
+
+    // --- CONTAINER SETUP ---
+    if (container) {
+        // Reset styles first
+        container.style.padding = '0';
+        container.style.margin = '0';
+
+        // Calculate height based on viewport minus header
+        container.style.height = 'calc(100vh - 170px)';
+        container.style.width = '100%';
+
+        // Default to hidden (Month View uses this), Week view overrides it
+        container.style.overflow = 'hidden';
+
+        if(container.parentElement) {
+            container.parentElement.style.padding = '0';
+            container.parentElement.style.height = '100%';
+            container.parentElement.style.display = 'flex';
+            container.parentElement.style.flexDirection = 'column';
+            container.parentElement.style.overflow = 'hidden';
+        }
+    }
 
     if (!container.innerHTML.trim()) {
         container.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:2rem; color:#888;">Loading schedule...</div>';
@@ -81,7 +98,7 @@ async function loadScheduler() {
         });
 
         const employees = [];
-        employeeColors = {}; // Reset color cache
+        employeeColors = {};
 
         empSnap.forEach(doc => {
             const data = doc.data();
@@ -97,10 +114,8 @@ async function loadScheduler() {
 
         const alertControls = document.getElementById('alertControls');
         if(alertControls) alertControls.style.display = 'flex';
-
         const delayInput = document.getElementById('editEmailDelay');
         if(delayInput) delayInput.value = schedulerSettings.emailDelayMinutes || 60;
-
         const enabledInput = document.getElementById('editEmailEnabled');
         if(enabledInput) enabledInput.checked = (schedulerSettings.emailAlertsEnabled === undefined) ? true : schedulerSettings.emailAlertsEnabled;
 
@@ -109,13 +124,13 @@ async function loadScheduler() {
             filteredJobs = jobs.filter(job => job.employeeId === currentEmpFilter);
         }
 
-        // Cache jobs for mobile popup access
         window.schedulerJobsCache = filteredJobs;
 
         const alertThreshold = schedulerSettings.alertThreshold || 15;
         const emailDelayMinutes = schedulerSettings.emailDelayMinutes || 60;
         const emailAlertsEnabled = enabledInput.checked;
 
+        // RENDER VIEWS
         if (currentView === 'week') {
             renderWeekView(filteredJobs, alertThreshold, emailDelayMinutes, emailAlertsEnabled, accountAlarms);
         } else if (currentView === 'day') {
@@ -125,7 +140,6 @@ async function loadScheduler() {
         }
 
         if (currentView !== 'month') {
-             setTimeout(() => { if(container) container.scrollTop = 1020; }, 100);
              setupInteractions();
         }
 
@@ -157,7 +171,8 @@ async function fetchJobs() {
     return jobs;
 }
 
-// --- NEW: COLOR TOGGLE UI ---
+// --- 5. RENDERERS ---
+
 function renderColorToggle() {
     let toggleContainer = document.getElementById('schedulerColorToggleContainer');
     if (!toggleContainer) {
@@ -174,14 +189,12 @@ function renderColorToggle() {
             toggleContainer.innerHTML = `
                 <label class="toggle-label" style="font-size:0.85rem; color:#4b5563; font-weight:600; cursor:pointer;">
                     <input type="checkbox" id="chkEmployeeColors" onchange="toggleColorMode(this)" style="margin-right:5px;">
-                    Show Employee Colors
+                    Colors
                 </label>
             `;
-
             header.insertBefore(toggleContainer, viewToggles);
         }
     }
-    // Restore state
     const chk = document.getElementById('chkEmployeeColors');
     if(chk) chk.checked = showEmployeeColors;
 }
@@ -191,12 +204,16 @@ window.toggleColorMode = function(checkbox) {
     loadScheduler();
 };
 
-// --- RENDERERS ---
-
 function renderWeekView(jobs, alertThreshold, emailDelay, emailEnabled, accountAlarms) {
     const grid = document.getElementById('schedulerGrid');
     if(!grid) return;
-    let html = '<div class="calendar-view">';
+
+    // --- ENABLE SCROLLING FOR WEEK VIEW ---
+    grid.style.overflow = 'auto';
+    grid.style.display = 'block';
+
+    // min-width forces scroll on small screens so columns don't crush
+    let html = '<div class="calendar-view" style="min-width: 1000px;">';
     html += generateTimeColumn();
     for (let i = 0; i < 7; i++) {
         const dayDate = new Date(currentDate);
@@ -210,6 +227,11 @@ function renderWeekView(jobs, alertThreshold, emailDelay, emailEnabled, accountA
 function renderDayView(jobs, alertThreshold, emailDelay, emailEnabled, accountAlarms) {
     const grid = document.getElementById('schedulerGrid');
     if(!grid) return;
+
+    // --- ENABLE SCROLLING FOR DAY VIEW ---
+    grid.style.overflow = 'auto';
+    grid.style.display = 'block';
+
     let html = '<div class="calendar-view">';
     html += generateTimeColumn();
     html += renderDayColumn(currentDate, jobs, alertThreshold, emailDelay, emailEnabled, true, accountAlarms);
@@ -217,90 +239,131 @@ function renderDayView(jobs, alertThreshold, emailDelay, emailEnabled, accountAl
     grid.innerHTML = html;
 }
 
+// --- 6. MONTH VIEW (FIT TO SCREEN - FIXED) ---
 function renderMonthView(jobs, alertThreshold, emailDelay, emailEnabled, accountAlarms) {
     const grid = document.getElementById('schedulerGrid');
     if(!grid) return;
 
-    // START WEEK ON MONDAY
-    let html = `
-    <div class="month-header">
-        <div class="month-day-label">Mon</div><div class="month-day-label">Tue</div>
-        <div class="month-day-label">Wed</div><div class="month-day-label">Thu</div>
-        <div class="month-day-label">Fri</div><div class="month-day-label">Sat</div>
-        <div class="month-day-label">Sun</div>
-    </div>
-    <div class="calendar-month-view">`;
+    // --- DISABLE OUTER SCROLL ---
+    grid.style.overflow = 'hidden';
+    grid.style.display = 'flex';
+    grid.style.flexDirection = 'column';
+
+    // WRAPPER: 100% width/height
+    let html = `<div style="width: 100%; height: 100%; display: flex; flex-direction: column; background:white;">`;
+
+    // GRID LAYOUT:
+    // - grid-template-columns: repeat(7, minmax(0, 1fr)) -> Forces columns to squash to fit 100% width.
+    // - NO min-width -> Allows it to shrink to any screen size.
+    html += `<div class="month-view-container" style="
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        grid-template-rows: 25px repeat(6, 1fr);
+        flex: 1;
+        width: 100%;
+        background: #fff;
+        border-top: 1px solid #e5e7eb;">
+
+        ${['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map(day =>
+            `<div style="background:#fff; text-align:center; font-size:0.75rem; font-weight:700; color:#6b7280; border-right: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; display:flex; align-items:center; justify-content:center; overflow:hidden;">${day}</div>`
+        ).join('')}
+    `;
 
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
     const now = new Date();
 
-    // BACKTRACK TO PREVIOUS MONDAY
     let iterator = new Date(firstDay);
-    const dayOfWeek = iterator.getDay(); // 0 (Sun) to 6 (Sat)
-    const diff = (dayOfWeek === 0 ? 6 : dayOfWeek - 1);
+    const diff = iterator.getDay();
     iterator.setDate(iterator.getDate() - diff);
 
+    // Render exactly 42 cells (6 rows x 7 cols)
     for(let i=0; i<42; i++) {
         const isCurrMonth = iterator.getMonth() === month;
         const dateStr = getLocalYMD(iterator);
         const isToday = isSameDay(iterator, now);
-        const activeClass = isToday ? ' today-active' : '';
+
+        const bgStyle = isCurrMonth ? 'background: #fff;' : 'background: #fcfcfc;';
+
+        // "Today" Indicator (Blue Circle)
+        let dateNumStyle = 'font-size:0.8rem; font-weight:600; padding:2px 4px; color:#374151;';
+        if (isToday) {
+            dateNumStyle = 'background: #2563eb; color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; margin: 4px;';
+        } else {
+            dateNumStyle += ' margin-top: 4px; text-align: left; display: block;';
+        }
+        if (!isCurrMonth) dateNumStyle += ' opacity: 0.4;';
+
         const dayJobs = jobs.filter(j => isSameDay(j.start, iterator));
+        dayJobs.sort((a,b) => a.start - b.start);
 
-        if (!isCurrMonth && iterator > lastDay && iterator.getDay() === 1) break;
+        // CELL:
+        // - overflow: hidden clips content so the box doesn't grow
+        html += `
+        <div class="month-day-cell"
+             style="${bgStyle} border-right: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; position:relative; display:flex; flex-direction:column; overflow:hidden;"
+             onclick="window.showAssignShiftModal('17:00', '${dateStr}')">
 
-        html += `<div class="month-day ${isCurrMonth ? '' : 'other-month'}${activeClass}" onclick="window.showAssignShiftModal('17:00', '${dateStr}')">
-            <div class="month-date-num">${iterator.getDate()}</div>
-            <div class="month-events">`;
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <div style="${dateNumStyle}">${iterator.getDate()}</div>
+            </div>
 
-        // Render events
+            <div style="flex:1; display:flex; flex-direction:column; gap:1px; overflow: hidden; padding: 0 2px 2px 2px;">`;
+
         dayJobs.forEach(job => {
-            let statusClass = 'month-event';
-            let extraStyle = '';
+            // PILL STYLES
+            let colorStyle = 'background-color: #e0f2fe; color: #1e40af;';
 
-            // LOGIC: COLOR CODING
-            if(job.status === 'Completed') statusClass += ' done';
-            else if(job.status === 'Started') statusClass += ' active';
-            else if (new Date() > new Date(job.start.getTime() + alertThreshold*60000)) statusClass += ' late';
+            if (job.status === 'Completed') colorStyle = 'background-color: #dcfce7; color: #166534;';
+            else if (job.status === 'Started') colorStyle = 'background-color: #f3f4f6; color: #4b5563;';
             else {
-                // Scheduled: Check toggle
-                if (showEmployeeColors && employeeColors[job.employeeId]) {
-                    extraStyle = `background-color: ${employeeColors[job.employeeId]}; color: #fff;`;
-                }
+                const lateTime = new Date(job.start.getTime() + alertThreshold * 60000);
+                if (now > lateTime) colorStyle = 'background-color: #fee2e2; color: #991b1b;';
+            }
+
+            if (showEmployeeColors && employeeColors[job.employeeId]) {
+                colorStyle = `background-color: ${employeeColors[job.employeeId]}; color: #fff;`;
             }
 
             const alarmIndicator = accountAlarms[job.accountId] ? '🔒' : '';
 
-            // For Mobile: This text will be shown in the bar (and truncated via CSS)
-            // For Desktop: This text is shown in the pill
-            html += `<div class="${statusClass}" style="${extraStyle}" data-id="${job.id}" onclick="event.stopPropagation()">
-                ${alarmIndicator} ${formatTime(job.start)} ${job.accountName}
+            html += `
+            <div style="${colorStyle} font-size:0.7rem; padding:1px 4px; border-radius:2px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:1px;"
+                 data-id="${job.id}"
+                 onclick="event.stopPropagation(); window.editJob({id:'${job.id}', accountId:'${job.accountId}', employeeId:'${job.employeeId}'})"
+                 title="${formatTime(job.start)} - ${job.accountName}">
+                 ${alarmIndicator} <span style="font-weight:700;">${formatTime(job.start)}</span> ${job.accountName}
             </div>`;
         });
 
         html += `</div>`;
 
-        // Mobile Detail Button (+)
-        html += `<div class="mobile-detail-btn" onclick="event.stopPropagation(); showMobileDayDetails('${dateStr}')">+</div>`;
+        // PLUS BUTTON: Only if shifts exist
+        if (dayJobs.length > 0) {
+            html += `
+                <div class="mobile-detail-btn"
+                     style="display:flex; position:absolute; bottom:2px; right:2px; width:18px; height:18px; background:rgba(255,255,255,0.8); color:#4b5563; border-radius:3px; justify-content:center; align-items:center; cursor:pointer; font-size:1rem; border:1px solid #d1d5db; font-weight:bold; z-index: 10;"
+                     onclick="event.stopPropagation(); showMobileDayDetails('${dateStr}')"
+                     title="View All">
+                     +
+                </div>`;
+        }
 
-        // Desktop Add Button
-        html += `<button class="month-add-btn" onclick="event.stopPropagation(); window.showAssignShiftModal('17:00', '${dateStr}')">+</button>
-        </div>`;
-
+        html += `</div>`;
         iterator.setDate(iterator.getDate() + 1);
     }
 
-    html += `</div>`;
+    html += `</div></div>`;
     grid.innerHTML = html;
 }
 
-// --- Mobile Detail Popup Function ---
+// --- 7. HELPER: POPUP MODAL ---
 window.showMobileDayDetails = function(dateStr) {
-    const targetDate = new Date(dateStr + 'T00:00:00');
+    const existing = document.getElementById('mobileDayPopup');
+    if(existing) existing.remove();
 
+    const targetDate = new Date(dateStr + 'T00:00:00');
     const allJobs = window.schedulerJobsCache || [];
 
     const dayJobs = allJobs.filter(j => {
@@ -313,35 +376,39 @@ window.showMobileDayDetails = function(dateStr) {
     dayJobs.sort((a,b) => a.start - b.start);
 
     const displayDate = targetDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-    let content = `<div style="padding:10px;">
-        <h3 style="margin:0 0 10px 0; font-size:1.1rem; color:#0d9488;">${displayDate}</h3>`;
+
+    let content = `<div style="padding:15px; background:#f9fafb; border-bottom:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center; border-radius:8px 8px 0 0;">
+            <h3 style="margin:0; font-size:1.1rem; color:#1f2937;">${displayDate}</h3>
+            <button onclick="document.getElementById('mobileDayPopup').remove()" style="border:none; background:none; font-size:1.5rem; color:#6b7280;">&times;</button>
+        </div>
+        <div style="max-height:60vh; overflow-y:auto; padding:15px; background:white;">`;
 
     if (dayJobs.length === 0) {
-        content += `<p style="color:#666; text-align:center; padding:20px;">No shifts scheduled.</p>`;
+        content += `<p style="color:#666; text-align:center; padding:20px; background:#f9fafb; border-radius:4px; border:1px solid #e5e7eb;">No shifts scheduled.</p>`;
     } else {
         dayJobs.forEach(job => {
-            let statusIcon = '📅';
-            let statusColor = '#3b82f6';
-            if (job.status === 'Completed') { statusIcon = '✅'; statusColor = '#10b981'; }
-            else if (job.status === 'Started') { statusIcon = '🔄'; statusColor = '#eab308'; }
+            let border = '4px solid #3b82f6';
+            if (job.status === 'Completed') border = '4px solid #10b981';
+            else if (job.status === 'Started') border = '4px solid #eab308';
 
             content += `
-            <div style="background:#f9fafb; padding:12px; margin-bottom:10px; border-left:4px solid ${statusColor}; border-radius:6px; box-shadow:0 1px 2px rgba(0,0,0,0.05);" onclick="window.editJob({id:'${job.id}', accountId:'${job.accountId}', employeeId:'${job.employeeId}', status:'${job.status}'}); document.getElementById('mobileDayPopup').remove();">
+            <div style="background:white; padding:10px; margin-bottom:8px; border-left:${border}; border-radius:4px; box-shadow:0 1px 2px rgba(0,0,0,0.05); cursor:pointer; border:1px solid #e5e7eb;"
+                 onclick="window.editJob({id:'${job.id}', accountId:'${job.accountId}', employeeId:'${job.employeeId}'}); document.getElementById('mobileDayPopup').remove();">
                 <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                    <strong style="color:#1f2937;">${job.accountName}</strong>
-                    <span style="font-size:0.8rem; color:#6b7280;">${formatTime(job.start)}</span>
+                    <strong style="color:#1f2937; font-size:0.95rem;">${job.accountName}</strong>
+                    <span style="font-size:0.85rem; color:#4b5563; font-weight:600;">${formatTime(job.start)}</span>
                 </div>
-                <div style="font-size:0.9rem; color:#4b5563;">
-                    ${statusIcon} 👤 ${job.employeeName}
+                <div style="font-size:0.8rem; color:#6b7280;">
+                    👤 ${job.employeeName}
                 </div>
             </div>`;
         });
     }
 
-    content += `
+    content += `</div><div style="padding:15px; background:#f9fafb; border-radius:0 0 8px 8px; border-top:1px solid #e5e7eb;">
         <button onclick="window.showAssignShiftModal('09:00', '${dateStr}'); document.getElementById('mobileDayPopup').remove();"
-        style="width:100%; padding:10px; background:#0d9488; color:white; border:none; border-radius:6px; font-weight:bold; margin-top:10px;">
-        + Add Shift
+        style="width:100%; padding:10px; background:#2563eb; color:white; border:none; border-radius:6px; font-weight:600; cursor:pointer;">
+        + New Shift
         </button>
     </div>`;
 
@@ -349,34 +416,34 @@ window.showMobileDayDetails = function(dateStr) {
     overlay.id = 'mobileDayPopup';
     overlay.style.cssText = `
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.5); z-index: 9999;
+        background: rgba(0,0,0,0.5); z-index: 99999;
         display: flex; justify-content: center; align-items: center;
-        backdrop-filter: blur(2px);
+        backdrop-filter: blur(1px);
     `;
 
     overlay.innerHTML = `
-        <div style="background:white; width:85%; max-width:400px; max-height:80vh; overflow-y:auto; border-radius:12px; padding:15px; position:relative; animation: popIn 0.2s ease-out;">
-            <button onclick="document.getElementById('mobileDayPopup').remove()"
-                style="position:absolute; top:10px; right:15px; border:none; background:none; font-size:1.5rem; color:#999;">&times;</button>
+        <div style="background:white; width:90%; max-width:450px; border-radius:8px; box-shadow:0 10px 25px rgba(0,0,0,0.2); animation: popIn 0.15s ease-out;">
             ${content}
         </div>
     `;
 
     const style = document.createElement('style');
-    style.innerHTML = `@keyframes popIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }`;
+    style.innerHTML = `@keyframes popIn { from { transform: scale(0.98); opacity: 0; } to { transform: scale(1); opacity: 1; } }`;
     overlay.appendChild(style);
-
+    overlay.onclick = (e) => { if(e.target === overlay) overlay.remove(); }
     document.body.appendChild(overlay);
 };
 
+// --- 8. UTILS ---
 
 function generateTimeColumn() {
     let html = '<div class="calendar-time-col">';
     html += '<div class="cal-header" style="background:#f9fafb; border-bottom:1px solid #e5e7eb;"></div>';
     for (let h = 0; h < HOURS_TO_RENDER; h++) {
-        let displayH = h % 24;
+        let actualHour = h + START_HOUR;
+        let displayH = actualHour % 24;
         let label = (displayH === 0) ? '12 AM' : (displayH < 12 ? `${displayH} AM` : (displayH === 12 ? '12 PM' : `${displayH - 12} PM`));
-        if (h >= 24) label += ' <span style="font-size:0.6rem; display:block; opacity:0.6;">(+1)</span>';
+        if (actualHour >= 24) label += ' <span style="font-size:0.6rem; display:block; opacity:0.6;">(+1)</span>';
         html += `<div class="time-slot" data-hour-index="${h}">${label}</div>`;
     }
     html += '</div>';
@@ -388,8 +455,6 @@ function renderDayColumn(dateObj, jobs, alertThreshold, emailDelay, emailEnabled
     const displayDate = dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' });
     const now = new Date();
     const isToday = isSameDay(dateObj, now);
-
-    // CHANGED: Only highlight 'today' if NOT in single day view.
     const activeClass = (isToday && !isSingleDay) ? ' today-active' : '';
 
     const dayJobs = jobs.filter(j => isSameDay(j.start, dateObj));
@@ -428,34 +493,24 @@ function renderDayColumn(dateObj, jobs, alertThreshold, emailDelay, emailEnabled
         let duration = endHour - startHour;
         if(duration < 0.5) duration = 0.5;
 
-        const topPx = startHour * 60;
-        const heightPx = Math.max(duration * 60, 25);
+        // Vertical positioning adjusted for Noon offset
+        const topPx = (startHour - START_HOUR) * PIXELS_PER_HOUR;
+        const heightPx = Math.max(duration * PIXELS_PER_HOUR, 25);
         const leftPos = 3 + (job.colIndex * colWidth);
 
         let statusClass = 'day-event';
-        let statusIcon = '';
         let extraStyle = '';
 
-        // LOGIC: COLOR CODING
-        if (job.status === 'Completed') {
-            statusClass += ' done';
-            statusIcon = '✅';
-        } else if (job.status === 'Started') {
-            statusClass += ' active';
-            statusIcon = '🔄';
-        } else {
-            // Check Late
+        if (job.status === 'Completed') statusClass += ' done';
+        else if (job.status === 'Started') statusClass += ' active';
+        else {
             const lateTime = new Date(job.start.getTime() + alertThreshold * 60000);
-            if (now > lateTime) {
-                statusClass += ' late';
-                statusIcon = '⚠️';
-            } else {
-                // Scheduled
-                statusClass += ' scheduled';
-                if (showEmployeeColors && employeeColors[job.employeeId]) {
-                    extraStyle = `background-color: ${employeeColors[job.employeeId]}; border-left-color: rgba(0,0,0,0.2); color: #fff;`;
-                }
-            }
+            if (now > lateTime) statusClass += ' late';
+            else statusClass += ' scheduled';
+        }
+
+        if (showEmployeeColors && employeeColors[job.employeeId]) {
+            extraStyle = `background-color: ${employeeColors[job.employeeId]}; border-left-color: rgba(0,0,0,0.2); color: #fff;`;
         }
 
         const alarmCode = accountAlarms[job.accountId];
@@ -468,7 +523,7 @@ function renderDayColumn(dateObj, jobs, alertThreshold, emailDelay, emailEnabled
              data-id="${job.id}"
              title="${job.accountName} - ${job.employeeName}">
             <div class="event-time" style="${titleColor}">${formatTime(job.start)} - ${formatTime(job.end)}</div>
-            <div class="event-title" style="${titleColor}">${statusIcon} ${job.accountName}</div>
+            <div class="event-title" style="${titleColor}">${job.accountName}</div>
             <div class="event-meta" style="${titleColor}">👤 ${job.employeeName.split(' ')[0]}</div>
             ${alarmHtml}
             <div class="resize-handle"></div>
@@ -529,7 +584,7 @@ function setupInteractions() {
             activeEl.style.height = `${newHeight}px`;
         } else if (mode === 'drag') {
             const snappedDeltaY = Math.round(deltaY / SNAP_PIXELS) * SNAP_PIXELS;
-            const newTop = Math.max(0, initialTop + snappedDeltaY);
+            const newTop = Math.max(-600, initialTop + snappedDeltaY);
             activeEl.style.top = `${newTop}px`;
         }
     };
@@ -550,8 +605,8 @@ function setupInteractions() {
         activeEl.style.zIndex = '';
         activeEl.style.width = '';
 
-        const startTotalMinutes = currentTop;
-        const durationMinutes = currentHeight;
+        const startTotalMinutes = (currentTop / PIXELS_PER_HOUR * 60) + (START_HOUR * 60);
+        const durationMinutes = (currentHeight / PIXELS_PER_HOUR * 60);
 
         activeEl.style.visibility = 'hidden';
         const elemBelow = document.elementFromPoint(e.clientX, e.clientY);
@@ -562,8 +617,11 @@ function setupInteractions() {
         if (targetCol && targetCol.dataset.date) {
             const targetDateStr = targetCol.dataset.date;
             const hours = Math.floor(startTotalMinutes / 60);
-            const minutes = startTotalMinutes % 60;
-            const newStart = new Date(`${targetDateStr}T${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:00`);
+            const minutes = Math.floor(startTotalMinutes % 60);
+            const newStart = new Date(`${targetDateStr}T${String(hours % 24).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:00`);
+
+            if (hours >= 24) newStart.setDate(newStart.getDate() + 1);
+
             const newEnd = new Date(newStart.getTime() + durationMinutes * 60000);
 
             window.showToast("Updating schedule...");
@@ -674,7 +732,8 @@ function dblClickHandler(event) {
     if (daySlots) {
         const yOffset = event.clientY - daySlots.getBoundingClientRect().top;
         const hourIndex = Math.floor(yOffset / slotHeight);
-        let clickedHour = hourIndex % 24;
+        let actualHour = hourIndex + START_HOUR; // Adjust for offset
+        let clickedHour = actualHour % 24;
         const formattedTime = `${String(clickedHour).padStart(2, '0')}:00`;
         const dayCol = event.target.closest('.calendar-day-col');
         const date = dayCol ? dayCol.getAttribute('data-date') : null;
@@ -701,12 +760,8 @@ function updateHeaderUI() {
     });
 }
 
-// --- UPDATED VIEW SWITCHER ---
-// Enforces "Current Week/Today" when switching modes
 window.changeView = function(view) {
     currentView = view;
-    // If user switches to Week or Day, force reset to REAL WORLD TODAY.
-    // This overrides the "Month View" date which is usually the 1st of the month.
     if (view === 'week' || view === 'day') {
         currentDate = new Date();
     }
@@ -728,29 +783,6 @@ function isSameDay(d1, d2) {
 }
 
 function formatTime(date) { return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
-
-function triggerLateAlert(job) {
-    console.log(`ALARM: ${job.employeeName} is late for ${job.accountName}`);
-    alertSound.play().catch(e => console.warn("Audio play blocked:", e));
-    if (Notification.permission === "granted") {
-        new Notification("MISSED CHECK-IN!", { body: `${job.employeeName} late.` });
-    }
-    sendEmailAlert(job);
-}
-
-function sendEmailAlert(job) {
-    if (typeof emailjs === 'undefined') return console.error("EmailJS not loaded in index.html");
-    const recipient = (schedulerSettings && schedulerSettings.smsEmail) ? schedulerSettings.smsEmail : job.owner;
-    const templateParams = {
-        employee: job.employeeName,
-        location: job.accountName,
-        time: job.start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-        to_email: recipient
-    };
-    emailjs.send('service_k7z8j0n', 'template_najzv28', templateParams)
-        .then(() => window.showToast(`Alert sent to ${recipient}`),
-              () => window.showToast("Failed to send alert."));
-}
 
 window.saveScheduleSettings = async function() {
     if (!window.currentUser) return;

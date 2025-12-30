@@ -128,7 +128,10 @@ auth.onAuthStateChanged(async user => {
             if (typeof loadMap === 'function') loadMap();
 
             // --- GOD MODE / ADMIN CONTROLS ---
-            if (user.email.toLowerCase() === ADMIN_EMAIL) {
+            // Check: Is Super Admin OR has isAdmin=true in DB
+            const isAuthorizedAdmin = (user.email.toLowerCase() === ADMIN_EMAIL) || (userData.isAdmin === true);
+
+            if (isAuthorizedAdmin) {
                 const adminDiv = document.getElementById('adminControls');
                 const statusLabel = document.getElementById('adminModeStatusLabel');
                 const toggleButton = document.getElementById('godModeToggleButton');
