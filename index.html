@@ -696,6 +696,19 @@
             </div>
 
             <div class="input-wrapper">
+                <label>Service Days</label>
+                <div class="day-selector" id="editServiceDaysContainer">
+                    <div class="day-chip" onclick="toggleDayChip(this)">Mon</div>
+                    <div class="day-chip" onclick="toggleDayChip(this)">Tue</div>
+                    <div class="day-chip" onclick="toggleDayChip(this)">Wed</div>
+                    <div class="day-chip" onclick="toggleDayChip(this)">Thu</div>
+                    <div class="day-chip" onclick="toggleDayChip(this)">Fri</div>
+                    <div class="day-chip" onclick="toggleDayChip(this)">Sat</div>
+                    <div class="day-chip" onclick="toggleDayChip(this)">Sun</div>
+                </div>
+            </div>
+
+            <div class="input-wrapper">
                 <label for="editAccountGeofence">🌐 Geofence (Meters)</label>
                 <input type="number" id="editAccountGeofence" placeholder="50" step="5" min="5" />
             </div>

@@ -2,36 +2,29 @@
 
 let editMap = null;
 let editMarker = null;
-let editCircle = null; // Global variable for the geofence circle
+let editCircle = null;
 
-// --- 1. HELPER: DRAW/UPDATE GEOFENCE CIRCLE ---
+// --- 1. HELPER: TOGGLE DAY CHIP VISUALS ---
+window.toggleDayChip = function(el) {
+    el.classList.toggle('selected');
+};
+
+// --- 2. HELPER: DRAW/UPDATE GEOFENCE CIRCLE ---
 function updateGeofenceCircle(lat, lng, radius) {
     if (!editMap) return;
-
-    // Ensure radius is a valid number (min 5 meters)
     const safeRadius = Math.max(5, parseFloat(radius) || 200);
-    console.log(`CleanDash: Drawing Geofence Circle at [${lat}, ${lng}] with radius ${safeRadius}m`);
 
-    // Remove old circle if it exists
     if (editCircle) {
-        if (editMap.hasLayer(editCircle)) {
-            editMap.removeLayer(editCircle);
-        }
+        if (editMap.hasLayer(editCircle)) editMap.removeLayer(editCircle);
     }
 
-    // Create and add the new circle
     editCircle = L.circle([lat, lng], {
-        color: '#2563eb',       // Darker Blue Border
-        fillColor: '#60a5fa',   // Light Blue Fill
-        fillOpacity: 0.2,       // Transparent Fill
-        weight: 2,              // Border thickness
-        radius: safeRadius      // Radius in METERS (Accurate to map scale)
+        color: '#2563eb', fillColor: '#60a5fa', fillOpacity: 0.2, weight: 2, radius: safeRadius
     }).addTo(editMap);
 }
 
-// --- 2. HELPER: HANDLE INPUT CHANGES ---
 function handleGeofenceInputChange() {
-    const radius = this.value; // Get value from input
+    const radius = this.value;
     if (editMarker) {
         const latLng = editMarker.getLatLng();
         updateGeofenceCircle(latLng.lat, latLng.lng, radius);
@@ -39,20 +32,15 @@ function handleGeofenceInputChange() {
 }
 
 // --- 3. MAIN LIST LOADER ---
-function loadAccountsList() {
+window.loadAccountsList = function() {
   if (!window.currentUser) return;
-
-  // DEV BUTTON (Only for Nate)
-  if (window.currentUser.email === 'nate@anagophilly.com') {
-      const devBtn = document.getElementById('btnDeleteAllAccounts');
-      if (devBtn) devBtn.style.display = 'inline-block';
-  }
+  const activeDiv = document.getElementById('accountsList');
+  const inactiveDiv = document.getElementById('inactiveAccountsList');
+  if(activeDiv) activeDiv.innerHTML = '<div style="text-align:center; padding:2rem; color:#888;">Loading Accounts...</div>';
 
   const q = db.collection('accounts').where('owner', '==', window.currentUser.email);
 
   q.orderBy('createdAt', 'desc').get().then(snap => {
-    const activeDiv = document.getElementById('accountsList');
-    const inactiveDiv = document.getElementById('inactiveAccountsList');
 
     if (snap.empty) {
       if(activeDiv) activeDiv.innerHTML = '<div style="text-align:center; padding:3rem; color:#6b7280;">No accounts yet — click "+ Add Account"</div>';
@@ -63,11 +51,7 @@ function loadAccountsList() {
     const tableHead = `<table class="data-table"><thead><tr><th>Name / Contact</th><th>Address / Alarm</th><th style="text-align:right;">Revenue</th><th style="text-align:center;">Actions</th></tr></thead><tbody>`;
     const inactiveHead = `<table class="data-table" style="opacity:0.7;"><thead><tr><th>Name</th><th>Reason</th><th style="text-align:right;">End Date</th><th style="text-align:center;">Actions</th></tr></thead><tbody>`;
 
-    let activeRows = '';
-    let inactiveRows = '';
-    let hasActive = false;
-    let hasInactive = false;
-
+    let activeRows = '', inactiveRows = '', hasActive = false, hasInactive = false;
     const today = new Date().toISOString().split('T')[0];
 
     snap.forEach(doc => {
@@ -76,10 +60,11 @@ function loadAccountsList() {
       const safeAlarm = (a.alarmCode || '').replace(/'/g, "\\'");
       const isInactive = a.endDate && a.endDate <= today;
 
+      // Handle Service Days (Array -> String for passing to function)
+      const serviceDays = (a.serviceDays || []).join(',');
+
       if (!isInactive) {
           hasActive = true;
-
-          // PREPARE DATA FOR EDIT FUNCTION
           const lat = a.lat || 0;
           const lng = a.lng || 0;
           const geofence = a.geofenceRadius || 50;
@@ -91,7 +76,7 @@ function loadAccountsList() {
             <td style="text-align:center;">
                 <div class="action-buttons">
                     <button onclick="openSpecsModal('${doc.id}', '${safeName}', 'view')" class="btn-xs btn-specs-view">Specs</button>
-                    <button onclick="showEditAccount('${doc.id}', '${safeName}', '${safeAlarm}', ${geofence}, ${lat}, ${lng})" class="btn-xs btn-edit">Edit</button>
+                    <button onclick="showEditAccount('${doc.id}', '${safeName}', '${safeAlarm}', ${geofence}, ${lat}, ${lng}, '${serviceDays}')" class="btn-xs btn-edit">Edit</button>
                 </div>
             </td>
           </tr>`;
@@ -114,11 +99,10 @@ function loadAccountsList() {
 
     if (typeof loadMap === 'function') setTimeout(loadMap, 50);
   });
-}
+};
 
 // --- 4. SHOW EDIT ACCOUNT MODAL ---
-window.showEditAccount = function(id, name, alarm, geofence, lat, lng) {
-  // 1. Populate ID and Fields
+window.showEditAccount = function(id, name, alarm, geofence, lat, lng, daysStr) {
   document.getElementById('editAccountId').value = id;
   const titleEl = document.getElementById('editAccountModalTitle');
   if(titleEl) titleEl.textContent = `Edit: ${name}`;
@@ -129,18 +113,21 @@ window.showEditAccount = function(id, name, alarm, geofence, lat, lng) {
   if(alarmEl) alarmEl.value = alarm || '';
   if(geoEl) geoEl.value = geofence || 200;
 
-  // 2. Show Modal
-  const modal = document.getElementById('editAccountModal');
-  if(modal) modal.style.display = 'flex';
+  // --- NEW: POPULATE DAY CHIPS ---
+  const days = daysStr ? daysStr.split(',') : [];
+  const chips = document.querySelectorAll('#editServiceDaysContainer .day-chip');
+  chips.forEach(chip => {
+      const dayText = chip.textContent.trim();
+      if (days.includes(dayText)) chip.classList.add('selected');
+      else chip.classList.remove('selected');
+  });
+
+  document.getElementById('editAccountModal').style.display = 'flex';
 
   // --- MAP LOGIC ---
   const ADMIN_EMAIL = 'nate@anagophilly.com';
   const SYSTEM_ADMIN_EMAIL = 'admin@cleandash.com';
-  const isAdmin = (
-      window.currentUser.email === ADMIN_EMAIL ||
-      window.currentUser.email === SYSTEM_ADMIN_EMAIL ||
-      window.currentUser.originalAdminEmail === ADMIN_EMAIL
-  );
+  const isAdmin = (window.currentUser.email === ADMIN_EMAIL || window.currentUser.email === SYSTEM_ADMIN_EMAIL);
 
   const helpText = document.getElementById('pinHelpText');
   if (helpText) {
@@ -148,21 +135,18 @@ window.showEditAccount = function(id, name, alarm, geofence, lat, lng) {
       helpText.style.color = isAdmin ? "#0d9488" : "#6b7280";
   }
 
-  // 3. Initialize Map (With Delay to ensure Modal is Visible)
   setTimeout(() => {
       const startLat = lat || 39.9526;
       const startLng = lng || -75.1652;
       const zoom = lat ? 18 : 10;
 
       if (!editMap) {
-          // CREATE MAP
           const mapEl = document.getElementById('editAccountMap');
           if(mapEl) {
             editMap = L.map('editAccountMap').setView([startLat, startLng], zoom);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 21 }).addTo(editMap);
             editMarker = L.marker([startLat, startLng], { draggable: isAdmin }).addTo(editMap);
 
-            // Drag Listener: Update circle when pin moves
             editMarker.on('dragend', function(e) {
                 const newLatLng = e.target.getLatLng();
                 const currentRadius = parseInt(document.getElementById('editAccountGeofence').value);
@@ -170,30 +154,65 @@ window.showEditAccount = function(id, name, alarm, geofence, lat, lng) {
             });
           }
       } else {
-          // UPDATE MAP
           editMap.setView([startLat, startLng], zoom);
           editMarker.setLatLng([startLat, startLng]);
           if (editMarker.dragging) isAdmin ? editMarker.dragging.enable() : editMarker.dragging.disable();
       }
 
-      // *** FORCE REFRESH: This fixes the "invisible" issue ***
       if (editMap) {
           editMap.invalidateSize();
-          // Draw circle immediately after map is ready
           updateGeofenceCircle(startLat, startLng, geofence);
       }
+  }, 400);
 
-  }, 400); // 400ms delay to be safe
-
-  // 4. Attach Input Listener (for Radius changes)
   const geoInput = document.getElementById('editAccountGeofence');
   if (geoInput) {
-      geoInput.removeEventListener('input', handleGeofenceInputChange); // Prevent duplicates
+      geoInput.removeEventListener('input', handleGeofenceInputChange);
       geoInput.addEventListener('input', handleGeofenceInputChange);
   }
 };
 
-// --- 5. GPS BUTTON LOGIC ---
+// --- 5. SAVE EDITED ACCOUNT ---
+window.saveEditedAccount = async (event) => {
+    const btn = event.target;
+    btn.disabled = true; btn.textContent = 'Saving...';
+
+    const id = document.getElementById('editAccountId').value;
+
+    try {
+        const finalLatLng = editMarker ? editMarker.getLatLng() : { lat: 0, lng: 0 };
+        const newGeofence = parseInt(document.getElementById('editAccountGeofence').value) || 200;
+        const newAlarm = document.getElementById('editAccountAlarm').value.trim();
+
+        // --- NEW: GATHER SELECTED DAYS ---
+        const selectedChips = document.querySelectorAll('#editServiceDaysContainer .day-chip.selected');
+        const serviceDays = Array.from(selectedChips).map(c => c.textContent.trim());
+
+        const updateData = {
+            alarmCode: newAlarm,
+            geofenceRadius: newGeofence,
+            lat: finalLatLng.lat,
+            lng: finalLatLng.lng,
+            serviceDays: serviceDays
+        };
+
+        await db.collection('accounts').doc(id).set(updateData, { merge: true });
+
+        window.showToast('Operational Data Saved!');
+        loadAccountsList();
+
+        if (typeof loadMap === 'function') loadMap();
+        if(window.hideEditAccount) window.hideEditAccount();
+        else document.getElementById('editAccountModal').style.display = 'none';
+
+    } catch (e) {
+        alert('Error: ' + e.message);
+    } finally {
+        btn.disabled = false; btn.textContent = 'Save Operational Data';
+    }
+};
+
+// --- 6. OTHER FUNCTIONS (Keep existing) ---
 window.setPinToUserLocation = function() {
     const btn = event.target;
     const originalText = btn.textContent;
@@ -219,7 +238,6 @@ window.setPinToUserLocation = function() {
                 editMap.setView(newLatLng, 18);
                 editMarker.bindPopup(`<b>Updated from GPS!</b><br>Accuracy: ~${Math.round(accuracy)}m`).openPopup();
 
-                // Update Circle Position
                 const currentRadius = parseInt(document.getElementById('editAccountGeofence').value);
                 updateGeofenceCircle(lat, lng, currentRadius);
             }
@@ -236,65 +254,6 @@ window.setPinToUserLocation = function() {
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
-};
-
-// --- 6. SAVE FUNCTION ---
-window.saveEditedAccount = async (event) => {
-    const btn = event.target;
-    btn.disabled = true; btn.textContent = 'Saving...';
-
-    const id = document.getElementById('editAccountId').value;
-
-    try {
-        const finalLatLng = editMarker ? editMarker.getLatLng() : { lat: 0, lng: 0 };
-        const newGeofence = parseInt(document.getElementById('editAccountGeofence').value) || 200;
-        const newAlarm = document.getElementById('editAccountAlarm').value.trim();
-
-        // PARTIAL UPDATE
-        const updateData = {
-            alarmCode: newAlarm,
-            geofenceRadius: newGeofence,
-            lat: finalLatLng.lat,
-            lng: finalLatLng.lng
-        };
-
-        await db.collection('accounts').doc(id).set(updateData, { merge: true });
-
-        window.showToast('Operational Data Saved!');
-        loadAccountsList();
-
-        if (typeof loadMap === 'function') loadMap();
-        if(window.hideEditAccount) window.hideEditAccount();
-        else document.getElementById('editAccountModal').style.display = 'none';
-
-    } catch (e) {
-        alert('Error: ' + e.message);
-    } finally {
-        btn.disabled = false; btn.textContent = 'Save Operational Data';
-    }
-};
-
-// --- OTHER EXISTING FUNCTIONS (Keep as is) ---
-window.deleteAllAccountsForDev = async function() {
-    const ADMIN_EMAIL = 'nate@anagophilly.com';
-    if (!window.currentUser || window.currentUser.email !== ADMIN_EMAIL) {
-        return alert("Access Denied: This is a restricted developer function.");
-    }
-    const btn = document.getElementById('btnDeleteAllAccounts');
-    const originalText = btn.textContent;
-    btn.disabled = true; btn.textContent = "DELETING MY ACCOUNTS...";
-    try {
-        const snap = await db.collection('accounts').get();
-        if (snap.empty) { alert("No accounts found."); return; }
-        const batchSize = 400; let batch = db.batch(); let count = 0;
-        for (const doc of snap.docs) {
-            const data = doc.data();
-            if (data.owner === ADMIN_EMAIL) { batch.delete(doc.ref); count++; if (count >= batchSize) { await batch.commit(); batch = db.batch(); count = 0; } }
-        }
-        if (count > 0) await batch.commit();
-        window.showToast(`Deleted accounts (Yours Only).`); loadAccountsList();
-    } catch (e) { alert("Error: " + e.message); }
-    finally { btn.disabled = false; btn.textContent = originalText; }
 };
 
 window.openInactiveReasonModal = function(accountId, type, currentName) {
@@ -437,73 +396,43 @@ window.saveNewAccount = async () => {
     } catch (e) { alert('Error: ' + e.message); }
 };
 
-document.addEventListener('DOMContentLoaded', () => {
-    const btn = document.getElementById('btnPidAutoFill');
-    if(btn) btn.addEventListener('click', runPidAutoFill);
-});
-// --- REPLACE THE OLD runPidAutoFill FUNCTION WITH THIS ---
-
+// Auto Fill PID
 async function runPidAutoFill() {
     const pidInput = document.getElementById('accountPID');
     const pidVal = pidInput.value.trim();
-
-    if (!pidVal) {
-        return alert("Please enter a PID first.");
-    }
-
+    if (!pidVal) return alert("Please enter a PID first.");
     const btn = document.getElementById('btnPidAutoFill');
     const originalText = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '🔍 Searching...';
+    btn.disabled = true; btn.innerHTML = '🔍 Searching...';
 
     try {
-        // Search the Master List for this PID
-        const snap = await db.collection('master_client_list')
-            .where('pid', '==', pidVal)
-            .limit(1)
-            .get();
-
+        const snap = await db.collection('master_client_list').where('pid', '==', pidVal).limit(1).get();
         if (snap.empty) {
-            // Try searching by Document ID just in case
             const docRef = await db.collection('master_client_list').doc(pidVal).get();
-            if (docRef.exists) {
-                fillForm(docRef.data());
-            } else {
-                alert(`No master record found for PID: ${pidVal}`);
-            }
+            if (docRef.exists) fillForm(docRef.data());
+            else alert(`No master record found for PID: ${pidVal}`);
         } else {
             fillForm(snap.docs[0].data());
         }
-
-    } catch (e) {
-        console.error(e);
-        alert("Error fetching data: " + e.message);
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-    }
+    } catch (e) { console.error(e); alert("Error fetching data: " + e.message); }
+    finally { btn.disabled = false; btn.innerHTML = originalText; }
 }
 
-// Helper to map Master Data -> Add Account Form Inputs
 function fillForm(data) {
-    // 1. Basic Info
     if(data.name) document.getElementById('accountName').value = data.name;
     if(data.street) document.getElementById('accountStreet').value = data.street;
     if(data.city) document.getElementById('accountCity').value = data.city;
     if(data.state) document.getElementById('accountState').value = data.state;
     if(data.zip) document.getElementById('accountZip').value = data.zip;
-
-    // 2. Operations
     if(data.revenue) document.getElementById('accountRevenue').value = data.revenue;
     if(data.startDate) document.getElementById('accountStartDate').value = data.startDate;
-
-    // 3. Contact Info
     if(data.contactName) document.getElementById('contactName').value = data.contactName;
     if(data.contactPhone) document.getElementById('contactPhone').value = data.contactPhone;
     if(data.contactEmail) document.getElementById('contactEmail').value = data.contactEmail;
-
-    // 4. Success Message
     window.showToast(`✨ Auto-Filled: ${data.name}`);
 }
 
-window.loadAccountsList = loadAccountsList;
+document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('btnPidAutoFill');
+    if(btn) btn.addEventListener('click', runPidAutoFill);
+});

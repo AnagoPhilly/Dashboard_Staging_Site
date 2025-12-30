@@ -1078,3 +1078,35 @@ input:checked + .slider:before { transform: translateX(22px); }
         margin-top: 20px;
     }
 }
+
+/* --- DAY SELECTOR (For Accounts & Ad Generator) --- */
+.day-selector {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+.day-chip {
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 20px;
+    background: white;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.day-chip:hover {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+}
+
+.day-chip.selected {
+    background-color: var(--primary); /* Teal */
+    color: white;
+    border-color: var(--primary);
+}
