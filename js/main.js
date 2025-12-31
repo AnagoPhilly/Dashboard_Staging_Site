@@ -104,52 +104,80 @@ window.toggleGodModeView = function() {
 // --- PWA INSTALLATION PROMPT LOGIC ---
 
 // --- PWA INSTALLATION PROMPT LOGIC (DEBUG VERSION) ---
+// Global variable to store the install "ticket"
+window.deferredInstallPrompt = null;
+
+// Global variable to hold the install ticket
+window.deferredInstallPrompt = null;
+
 function initPWAInstallLogic() {
-    let deferredPrompt;
-    const installBanner = document.getElementById('installBanner');
-    const btnInstall = document.getElementById('btnInstall');
-
-    console.log("PWA Logic Initialized. Waiting for browser event...");
-
-    // 1. Listen for the browser saying "I'm ready to install!"
+    // 1. Listen for the browser "Ready" signal
     window.addEventListener('beforeinstallprompt', (e) => {
-        console.log("✅ 'beforeinstallprompt' event FIRED!");
-        e.preventDefault(); // Stop the mini-infobar
-        deferredPrompt = e; // Save the event "ticket" for later
-
-        // Show our banner
-        if (installBanner) {
-            installBanner.style.display = 'flex';
-            console.log("Banner displayed.");
-        }
+        e.preventDefault();
+        window.deferredInstallPrompt = e;
+        console.log("✅ App is ready to be installed.");
     });
 
-    // 2. Handle the button click
-    if (btnInstall) {
-        btnInstall.addEventListener('click', async () => {
-            console.log("Install button clicked.");
+    // 2. Make the Profile Button work
+    const btnProfileInstall = document.getElementById('btnProfileInstall');
 
-            if (!deferredPrompt) {
-                alert("⚠️ Error: The browser has not granted permission to install yet.\n\nDid you force the banner to show via console? That won't work.\nUse the 'Application > Manifest > Trigger' method.");
+    if (btnProfileInstall) {
+        btnProfileInstall.addEventListener('click', async () => {
+
+            // CASE A: Android/Desktop is ready to install
+            if (window.deferredInstallPrompt) {
+                window.deferredInstallPrompt.prompt();
+                const { outcome } = await window.deferredInstallPrompt.userChoice;
+                console.log(`User response: ${outcome}`);
+                window.deferredInstallPrompt = null;
                 return;
             }
 
-            // Show the native browser prompt
-            console.log("Triggering native prompt...");
-            deferredPrompt.prompt();
+            // CASE B: Already Installed or iPhone
+            const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
 
-            // Wait for the user to respond
-            const { outcome } = await deferredPrompt.userChoice;
-            console.log(`User response: ${outcome}`);
-
-            deferredPrompt = null;
-            if (installBanner) installBanner.style.display = 'none';
+            if (isIOS) {
+                alert("📲 To install on iPhone:\n\n1. Tap the Share button (square with arrow)\n2. Scroll down and tap 'Add to Home Screen'");
+            } else {
+                alert("The app is likely already installed! Check your Home Screen or App List.");
+            }
         });
     }
 
-    // 3. Listener for successful install
+    // 3. Hide banner if installed successfully
     window.addEventListener('appinstalled', () => {
-        console.log('🎉 CleanDash was installed successfully.');
-        if (installBanner) installBanner.style.display = 'none';
+        console.log('🎉 App Installed');
+        window.deferredInstallPrompt = null;
+        if (document.getElementById('installBanner')) {
+            document.getElementById('installBanner').style.display = 'none';
+        }
     });
+}
+
+// Helper function to trigger the native prompt
+async function triggerInstall() {
+    if (!window.deferredInstallPrompt) return;
+
+    // Show the native browser prompt
+    window.deferredInstallPrompt.prompt();
+
+    // Wait for the user to respond
+    const { outcome } = await window.deferredInstallPrompt.userChoice;
+    console.log(`User response: ${outcome}`);
+
+    // Reset variable (can't use it twice)
+    window.deferredInstallPrompt = null;
+    document.getElementById('installBanner').style.display = 'none';
+}
+
+// Helper to explain iOS installation
+function checkIOSandHelp() {
+    // Detect if user is on iPhone/iPad using classic regex
+    const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+
+    if (isIOS) {
+        alert("📲 To install on iPhone:\n\n1. Tap the 'Share' icon (square with arrow) at the bottom.\n2. Scroll down and tap 'Add to Home Screen'.");
+    } else {
+        alert("It looks like the app is already installed, or your browser doesn't support automatic installation.");
+    }
 }
