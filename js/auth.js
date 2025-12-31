@@ -35,38 +35,69 @@ auth.onAuthStateChanged(async user => {
     console.log("Auth: User detected:", user.email);
     window.currentUser = user;
 
-    // --- SAFETY WRAPPER START ---
     try {
         // -----------------------------------------------------------------
-        // 1. IMPERSONATION LOGIC (For Admin "View As")
+        // 1. ADMIN AUTHORIZATION CHECK (Priority Order)
+        // -----------------------------------------------------------------
+        const ADMIN_EMAIL = 'nate@anagophilly.com';
+        let isAuthorizedAdmin = false;
+
+        // CHECK A: Hardcoded Super Admin (Immediate Pass)
+        if (user.email.toLowerCase() === ADMIN_EMAIL) {
+            isAuthorizedAdmin = true;
+        }
+        // CHECK B: Database Flag (Only check if not already authorized)
+        else {
+            const realUserDoc = await db.collection('users').doc(user.uid).get();
+            if (realUserDoc.exists && realUserDoc.data().isAdmin === true) {
+                isAuthorizedAdmin = true;
+            }
+        }
+
+        // -----------------------------------------------------------------
+        // 2. IMPERSONATION LOGIC (For Admin "View As")
         // -----------------------------------------------------------------
         const urlParams = new URLSearchParams(window.location.search);
         const viewAsEmail = urlParams.get('viewAs');
-        const ADMIN_EMAIL = 'nate@anagophilly.com';
-        const isImpersonating = viewAsEmail && user.email.toLowerCase() === ADMIN_EMAIL;
+        const targetId = urlParams.get('targetId');
+
+        // Only allow impersonation if a param exists AND user is Authorized
+        const isImpersonating = (viewAsEmail || targetId) && isAuthorizedAdmin;
 
         // Elements to update in Sidebar
         const nameDisplay = document.getElementById('userNameDisplay');
         const emailDisplay = document.getElementById('userEmailDisplay');
 
         if (isImpersonating) {
-            let impersonatedName = viewAsEmail;
+            let impersonatedName = viewAsEmail || "User";
+            let targetDoc = null;
+
             try {
-                // Find target user to get their UID
-                const ownerSnap = await db.collection('users').where('email', '==', viewAsEmail).limit(1).get();
-                if (!ownerSnap.empty) {
-                    const targetDoc = ownerSnap.docs[0];
+                // STRATEGY A: Lookup by ID (Primary)
+                if (targetId && targetId !== 'undefined' && targetId !== 'null') {
+                    const docSnap = await db.collection('users').doc(targetId).get();
+                    if (docSnap.exists) targetDoc = docSnap;
+                }
+
+                // STRATEGY B: Fallback to Email (Secondary)
+                if (!targetDoc && viewAsEmail) {
+                    const ownerSnap = await db.collection('users').where('email', '==', viewAsEmail).limit(1).get();
+                    if (!ownerSnap.empty) targetDoc = ownerSnap.docs[0];
+                }
+
+                if (targetDoc && targetDoc.exists) {
                     const ownerData = targetDoc.data();
                     if (ownerData.name) impersonatedName = ownerData.name;
+                    const finalEmail = ownerData.email || viewAsEmail;
 
                     // OVERRIDE currentUser so the app thinks we are them
                     window.currentUser = {
                         uid: targetDoc.id,
-                        email: viewAsEmail,
+                        email: finalEmail,
                         originalAdminEmail: user.email,
                         getIdToken: () => user.getIdToken()
                     };
-                    console.log(`Auth: Impersonating ${impersonatedName}`);
+                    console.log(`Auth: Successfully Impersonating ${impersonatedName}`);
                 }
             } catch (e) { console.warn("Impersonation Error:", e); }
 
@@ -75,34 +106,9 @@ auth.onAuthStateChanged(async user => {
         }
 
         // -----------------------------------------------------------------
-        // 2. CHECK IF EMPLOYEE
+        // 3. CHECK IF OWNER (PRIORITY FIX: Check this BEFORE Employee)
         // -----------------------------------------------------------------
-        const checkEmail = window.currentUser.email;
-        const empSnap = await db.collection('employees').where('email', '==', checkEmail).get();
-
-        if (!empSnap.empty) {
-            // --- USER IS AN EMPLOYEE ---
-            console.log("Auth: Role = Employee");
-
-            if (nameDisplay && !isImpersonating && empSnap.docs[0].data().name) {
-                 nameDisplay.textContent = empSnap.docs[0].data().name;
-            }
-
-            // REDIRECT: If on Dashboard, go to Portal
-            if (!isPortal) {
-                window.location.href = 'employee_portal.html';
-                return;
-            }
-
-            // If on Portal, we are good.
-            if (appLoading) appLoading.style.display = 'none';
-            if (app) app.style.display = 'block';
-            return;
-        }
-
-        // -----------------------------------------------------------------
-        // 3. CHECK IF OWNER
-        // -----------------------------------------------------------------
+        // We re-fetch here to ensure we get the data of the *current context* user.
         const ownerDoc = await db.collection('users').doc(window.currentUser.uid).get();
 
         if (ownerDoc.exists && ownerDoc.data().role === 'owner') {
@@ -117,7 +123,6 @@ auth.onAuthStateChanged(async user => {
 
             // REDIRECT: If on Portal, go to Dashboard (Unless testing)
             if (isPortal) {
-                 // Allow 'testMode' param to bypass redirect for debugging
                  if (!urlParams.get('testMode')) {
                      window.location.href = 'index.html';
                      return;
@@ -134,9 +139,6 @@ auth.onAuthStateChanged(async user => {
                 const activePage = document.querySelector('.page.active');
                 const pageId = activePage ? activePage.id : 'dashboard';
 
-                console.log(`Auth: Initializing view for ${pageId}...`);
-
-                // Safely load the active page
                 setTimeout(() => {
                     if (pageId === 'scheduler' && typeof window.loadScheduler === 'function') {
                         window.loadScheduler();
@@ -147,14 +149,11 @@ auth.onAuthStateChanged(async user => {
                     } else if (pageId === 'payroll' && typeof window.loadPayroll === 'function') {
                         window.loadPayroll();
                     } else {
-                        // Default fallback (Dashboard)
                         if (typeof window.loadMap === 'function') window.loadMap();
                     }
                 }, 100);
 
                 // --- GOD MODE / ADMIN CONTROLS ---
-                const isAuthorizedAdmin = (user.email.toLowerCase() === ADMIN_EMAIL) || (userData.isAdmin === true);
-
                 if (isAuthorizedAdmin) {
                     const adminDiv = document.getElementById('adminControls');
                     const statusLabel = document.getElementById('adminModeStatusLabel');
@@ -187,46 +186,63 @@ auth.onAuthStateChanged(async user => {
                     }
                 }
             }
-        } else {
-            // -----------------------------------------------------------------
-            // 4. UNKNOWN USER
-            // -----------------------------------------------------------------
-            console.warn("Auth: User authenticated but no profile found.");
+            return; // STOP HERE if Owner (Don't check Employee)
+        }
 
-            if (isPortal) {
-                 alert("Account not found in Employee Roster.");
-                 auth.signOut();
-                 window.location.href = 'index.html';
-            } else {
-                 alert("Access Denied: No Owner Profile found.");
-                 auth.signOut();
+        // -----------------------------------------------------------------
+        // 4. CHECK IF EMPLOYEE (Only if NOT an Owner)
+        // -----------------------------------------------------------------
+        const checkEmail = window.currentUser.email;
+        const empSnap = await db.collection('employees').where('email', '==', checkEmail).get();
+
+        if (!empSnap.empty) {
+            // --- USER IS AN EMPLOYEE ---
+            console.log("Auth: Role = Employee");
+
+            if (nameDisplay && !isImpersonating && empSnap.docs[0].data().name) {
+                 nameDisplay.textContent = empSnap.docs[0].data().name;
             }
+
+            // REDIRECT: If on Dashboard, go to Portal
+            if (!isPortal) {
+                window.location.href = 'employee_portal.html';
+                return;
+            }
+
+            // If on Portal, we are good.
+            if (appLoading) appLoading.style.display = 'none';
+            if (app) app.style.display = 'block';
+            return;
+        }
+
+        // -----------------------------------------------------------------
+        // 5. UNKNOWN USER
+        // -----------------------------------------------------------------
+        console.warn("Auth: User authenticated but no profile found.");
+
+        if (isPortal) {
+             alert("Account not found in Employee Roster.");
+             auth.signOut();
+             window.location.href = 'index.html';
+        } else {
+             alert("Access Denied: No Owner Profile found.");
+             auth.signOut();
         }
 
     } catch (error) {
-        // --- SAFETY NET: THIS WILL CATCH THE CRASH ---
         console.error("Auth Critical Failure:", error);
-        alert("System Error: " + error.message + "\n\nSee console (F12) for details.\n\nPossible Cause: Firebase Rules blocking access.");
-
-        // Force UI to recover so you aren't stuck
+        alert("System Error: " + error.message);
         if (appLoading) appLoading.style.display = 'none';
         if (loginPage) loginPage.style.display = 'flex';
     }
-    // --- SAFETY WRAPPER END ---
-
   } else {
     // -----------------------------------------------------------------
-    // 5. NOT LOGGED IN
+    // 6. NOT LOGGED IN
     // -----------------------------------------------------------------
-    console.log("Auth: No user.");
-
-    // If on Portal, KICK BACK to Login Page (Index)
     if (isPortal) {
         window.location.href = 'index.html';
         return;
     }
-
-    // If on Index, Show Login Form
     if (loginPage) loginPage.style.display = 'flex';
     if (app) app.style.display = 'none';
     if (appLoading) appLoading.style.display = 'none';
@@ -248,25 +264,19 @@ window.login = () => {
   });
 };
 
-// --- LOGOUT FUNCTION (UPDATED) ---
+// --- LOGOUT FUNCTION ---
 window.logout = () => {
-  // Clear any saved view state so next login starts fresh on "Day View"
   sessionStorage.clear();
-
   auth.signOut().then(() => {
       window.location.href = 'index.html';
   });
 };
 
-// --- FAIL-SAFE: Force Login Screen if Auth hangs ---
 setTimeout(() => {
     const appLoading = document.getElementById('appLoading');
     const loginPage = document.getElementById('loginPage');
-
-    // If loading is still visible after 3 seconds, assume initialization failed/stalled
     if (appLoading && appLoading.style.display !== 'none') {
-        console.warn("Auth: Initialization took too long. Forcing Login Screen.");
         appLoading.style.display = 'none';
         if (loginPage) loginPage.style.display = 'flex';
     }
-}, 3000); // 3 second timeout
+}, 3000);

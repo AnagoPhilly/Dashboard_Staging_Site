@@ -154,7 +154,8 @@ async function loadGodModeData() {
                         ${adminIcon}
                     </button>
 
-                    <button class="btn btn-secondary" onclick="impersonateUser('${u.email}')">👁️ View Dashboard</button>
+                    <button class="btn btn-secondary" onclick="impersonateUser('${u.email}', '${u.id}')">👁️ View Dashboard</button>
+
                     <button class="btn btn-danger" style="margin-left:5px; font-size:0.7rem;" onclick="nukeUser('${u.id}', '${u.name}')">🗑️</button>
                 </div>
             </div>`;
@@ -637,8 +638,13 @@ async function uploadNewOwners(data, btn, statusEl) {
 }
 
 // --- ACTIONS ---
-window.impersonateUser = function(email) {
-    window.location.href = `index.html?viewAs=${encodeURIComponent(email)}`;
+window.impersonateUser = function(email, uid) {
+    let url = `index.html?viewAs=${encodeURIComponent(email)}`;
+    // Only append ID if it is a valid string
+    if (uid && uid !== 'undefined' && uid !== 'null') {
+        url += `&targetId=${encodeURIComponent(uid)}`;
+    }
+    window.location.href = url;
 };
 
 window.nukeUser = async function(uid, name) {
