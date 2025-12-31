@@ -5,6 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>CleanDash</title>
 
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CleanDash">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <meta name="theme-color" content="#0d9488">
+
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="scheduler.css" />
     <link rel="stylesheet" href="payroll.css" />
@@ -80,7 +87,6 @@
         <div class="sidebar-header">
             <h1>CleanDash</h1>
             <div id="userNameDisplay" style="font-weight: 600;">Loading...</div>
-
         </div>
 
         <div id="adminControls" style="display:none; padding: 0 1.5rem 1rem 1.5rem; border-bottom: 1px solid #374151;">
@@ -96,23 +102,12 @@
         </div>
 
         <nav class="nav">
-
             <div class="nav-item" data-page="scheduler">Scheduler</div>
             <div class="nav-item" data-page="employees">Team Management</div>
             <div class="nav-item" data-page="accounts">Accounts</div>
             <div class="nav-item active" data-page="dashboard">Dashboard</div>
-            <!--<div class="nav-item" data-page="payroll">Payroll Tracking</div>
-            <div class="nav-item" data-page="metrics">Metrics Graph</div>
-            <div class="nav-item" data-page="pnl">P&L Statement</div>
-            <div class="nav-item" data-page="cfee_calc">CFee Calculator</div> -->
-
             <div class="nav-item" data-page="ad_generator">Ad Generator</div>
             <div class="nav-item" data-page="profile">Profile</div>
-
-            <!--<div class="nav-item" style="margin-top: 20px; border-top: 1px solid #374151; color: #9ca3af;" onclick="window.open('import.html', '_blank')">
-                Import Data
-            </div>-->
-
             <div class="nav-item logout" onclick="logout()">Logout</div>
         </nav>
     </div>
@@ -122,9 +117,7 @@
         <div id="dashboard" class="page active">
             <div class="page-container">
                 <div class="content-card">
-                    <div class="card-header" style="border-bottom:none; margin-bottom:0; padding-bottom:0;">
-
-                    </div>
+                    <div class="card-header" style="border-bottom:none; margin-bottom:0; padding-bottom:0;"></div>
 
                     <div id="dashboardKPIs" class="kpi-scorecard-dashboard">
                         <p style="text-align:center; color:#888;">Loading KPIs...</p>
@@ -153,7 +146,6 @@
                         </div>
                         <div style="display:flex; gap:10px;">
                             <button id="btnDeleteAllAccounts" onclick="deleteAllAccountsForDev()" class="btn btn-danger" style="display:none; background:#b91c1c;">⚠️ Delete All</button>
-
                             <button onclick="window.open('import.html', '_blank')" class="btn btn-secondary" style="border:1px solid #d1d5db;">📂 Import List</button>
                             <button onclick="showAddAccount()" class="btn btn-primary">+ Add Account</button>
                         </div>
@@ -225,12 +217,10 @@
 
                     <div id="alertControls" class="alert-info-block" style="margin-top: 1.5rem; padding: 1rem; border-radius: 8px; display: none; align-items: center; justify-content: space-between;">
                         <span class="alert-info-label">Email Alert Settings:</span>
-
                         <div style="display: flex; gap: 15px; align-items:center;">
                             <label class="toggle-label alert-info-text" for="editEmailEnabled" style="flex-shrink:0; cursor: pointer;">
                                 <input type="checkbox" id="editEmailEnabled" style="width:auto; margin-right:8px;" onchange="saveScheduleSettings()"> Enable Alerts
                             </label>
-
                             <div style="flex:1; display: flex; align-items: center; gap: 5px;">
                                 <span class="alert-info-text" style="font-size: 0.9rem; font-weight: 600;">Delay:</span>
                                 <input type="number" id="editEmailDelay" placeholder="60" value="60"
@@ -241,7 +231,6 @@
                             </div>
                         </div>
                     </div>
-
                 </div>
             </div>
         </div>
@@ -269,16 +258,12 @@
                         <div style="display:flex; gap:10px; align-items:center;">
                             <label for="payStart" class="vh">Start Date</label>
                             <input type="date" id="payStart" class="form-control" style="padding:8px; border-radius:6px; border:1px solid #ddd;" onchange="updatePayrollDates()">
-
                             <span style="color:#666;">to</span>
-
                             <label for="payEnd" class="vh">End Date</label>
                             <input type="date" id="payEnd" class="form-control" style="padding:8px; border-radius:6px; border:1px solid #ddd;" onchange="updatePayrollDates()">
-
                             <button class="btn btn-secondary" onclick="exportPayrollCSV()">Export CSV</button>
                         </div>
                     </div>
-
                     <div id="payrollTableContainer"></div>
                 </div>
             </div>
@@ -304,9 +289,7 @@
                             <button class="btn btn-primary" style="width:100%; margin-bottom:1rem; background:#3b82f6;" onclick="generateMetricsGraphFromDB()">
                                 📊 Load Graph from My Accounts
                             </button>
-
                             <div style="text-align:center; margin-bottom:1rem; font-weight:bold; color:#ccc;">— OR —</div>
-
                             <span class="metrics-label">Paste Manual Data:</span>
                             <p style="font-size:0.8rem; color:#666; margin-bottom:0.5rem;">Copy the table directly from your Excel sheet or Database (Date, Amount, etc.) and paste below.</p>
                             <textarea id="metricsInput" class="metrics-textarea" placeholder="Paste rows here (e.g. 11/20/25  $7,492.63)..."></textarea>
@@ -694,25 +677,24 @@
                 <label for="editAccountAlarm">🚨 Alarm/Door Code</label>
                 <input type="text" id="editAccountAlarm" placeholder="e.g. 1234" />
             </div>
+        </div>
 
-
-            <div class="input-wrapper">
-                <label>Service Days</label>
-                <div class="day-selector" id="editServiceDaysContainer">
-                    <div class="day-chip" onclick="toggleDayChip(this)">Mon</div>
-                    <div class="day-chip" onclick="toggleDayChip(this)">Tue</div>
-                    <div class="day-chip" onclick="toggleDayChip(this)">Wed</div>
-                    <div class="day-chip" onclick="toggleDayChip(this)">Thu</div>
-                    <div class="day-chip" onclick="toggleDayChip(this)">Fri</div>
-                    <div class="day-chip" onclick="toggleDayChip(this)">Sat</div>
-                    <div class="day-chip" onclick="toggleDayChip(this)">Sun</div>
-                </div>
+        <div class="input-wrapper">
+            <label>Service Days</label>
+            <div class="day-selector" id="editServiceDaysContainer">
+                <div class="day-chip" onclick="toggleDayChip(this)">Mon</div>
+                <div class="day-chip" onclick="toggleDayChip(this)">Tue</div>
+                <div class="day-chip" onclick="toggleDayChip(this)">Wed</div>
+                <div class="day-chip" onclick="toggleDayChip(this)">Thu</div>
+                <div class="day-chip" onclick="toggleDayChip(this)">Fri</div>
+                <div class="day-chip" onclick="toggleDayChip(this)">Sat</div>
+                <div class="day-chip" onclick="toggleDayChip(this)">Sun</div>
             </div>
+        </div>
 
-            <div class="input-wrapper">
-                <label for="editAccountGeofence">🌐 Geofence (Meters)</label>
-                <input type="number" id="editAccountGeofence" placeholder="50" step="5" min="5" />
-            </div>
+        <div class="input-wrapper">
+            <label for="editAccountGeofence">🌐 Geofence (Meters)</label>
+            <input type="number" id="editAccountGeofence" placeholder="50" step="5" min="5" />
         </div>
 
         <div class="input-wrapper">
@@ -720,7 +702,6 @@
             <div id="editAccountMap" style="height: 300px; border-radius: 6px; border: 1px solid #ccc;"></div>
             <div style="display:flex; justify-content:space-between; margin-top:5px;">
                 <small id="pinHelpText" style="color:#666;">Drag pin to set exact building location.</small>
-
             </div>
         </div>
 
@@ -729,7 +710,6 @@
             <button onclick="hideEditAccount()" class="cancel">Cancel</button>
         </div>
     </div>
-</div>
 </div>
 
 <div id="employeeModal" class="modal">
@@ -769,8 +749,7 @@
                 </button>
 
                 <div id="colorDropdown" class="color-dropdown-popover">
-                    <div id="colorPaletteGrid">
-                    </div>
+                    <div id="colorPaletteGrid"></div>
                 </div>
             </div>
         </div>
@@ -1010,6 +989,24 @@
 </div>
 
 <div id="toast"></div>
+
+<div id="installBanner" style="display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: white; padding: 15px 25px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); z-index: 10000; align-items: center; gap: 15px; border-left: 5px solid #0d9488;">
+    <div style="font-weight: 600; color: #1f2937;">Install CleanDash for a better experience</div>
+    <div style="display: flex; gap: 10px;">
+        <button id="btnInstall" class="btn btn-primary" style="padding: 8px 15px; font-size: 0.85rem;">Install</button>
+        <button onclick="document.getElementById('installBanner').style.display='none'" class="btn btn-secondary" style="padding: 8px 15px; font-size: 0.85rem;">Later</button>
+    </div>
+</div>
+
+<script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then((reg) => console.log('Service Worker Registered!', reg.scope))
+          .catch((err) => console.log('Service Worker Failed:', err));
+      });
+    }
+</script>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>

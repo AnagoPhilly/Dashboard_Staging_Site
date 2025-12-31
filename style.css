@@ -1110,3 +1110,22 @@ input:checked + .slider:before { transform: translateX(22px); }
     color: white;
     border-color: var(--primary);
 }
+
+/* --- FIX: Horizontal Scroll for Team Lists on Mobile --- */
+#employeeListActive,
+#employeeListWaiting,
+#employeeListInactive {
+    display: block;              /* Ensures the container behaves like a block */
+    width: 100%;                 /* Forces full width */
+    overflow-x: auto;            /* Adds a scrollbar ONLY if content is too wide */
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling for iPhones */
+    white-space: nowrap;         /* Prevents text from wrapping to the next line */
+    padding-bottom: 10px;        /* Adds space for the scrollbar */
+}
+
+/* FORCE the rows inside to be wider than a phone screen */
+#employeeListActive > div,
+#employeeListWaiting > div,
+#employeeListInactive > div {
+    min-width: 650px;  /* This forces the scrollbar to appear */
+}
