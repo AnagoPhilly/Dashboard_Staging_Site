@@ -1,566 +1,464 @@
-/* style.css */
+/* scheduler.css */
 
-:root {
-  --primary: #0d9488;
-  --primary-hover: #0f766e;
-  --secondary: #64748b;
-  --danger: #ef4444;
-  --sidebar: #1f2937;
-  --text-dark: #1f2937;
-  --text-med: #4b5563;
-  --text-light: #f3f4f6;
-  --bg: #f3f4f6;
-}
+/* --- OUTLOOK-STYLE SCHEDULER --- */
 
-* { margin:0; padding:0; box-sizing:border-box; }
-body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text-dark); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-
-/* --- ACCESSIBILITY HELPERS --- */
-.vh {
-    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
-    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
-}
-
-/* --- GLOBAL LAYOUT SYSTEM --- */
-.app-container {
+/* View Toggles (Pills) */
+.view-toggles {
     display: flex;
-    flex-direction: row;
-    height: 100vh;
-    overflow: hidden;
+    background: #f3f4f6;
+    padding: 4px;
+    border-radius: 8px;
+    gap: 4px;
 }
 
-.sidebar {
-    width: 260px;
-    background: var(--sidebar);
-    color: var(--text-light);
-    display: flex;
-    flex-direction: column;
-    flex-shrink: 0;
-    overflow-y: auto;
-}
-
-.main-content {
-    flex: 1; /* Take up remaining space */
-    padding: 2rem;
-    overflow-y: auto;
-    background: var(--bg);
-    height: 100vh;
-    position: relative;
-}
-
-/* Center the page content within the main area */
-.page-container {
-    max-width: 1400px;
-    margin: 0 auto; /* Center horizontally */
-    width: 100%;
-}
-
-.content-card {
-  background: white; border-radius: 16px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  padding: 2rem; margin-bottom: 2rem; overflow: hidden;
-}
-
-.card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #e5e7eb; }
-.card-header h2 { font-size: 1.5rem; font-weight: 700; color: var(--text-dark); }
-.card-header p { color: var(--text-med); font-size: 0.95rem; margin-top: 0.25rem; }
-
-/* Sidebar Header & Nav */
-.sidebar-header { padding:2rem 1.5rem; border-bottom:1px solid #374151; }
-.sidebar-header h1 { font-size:1.8rem; font-weight:bold; }
-.sidebar-header div { font-size:0.95rem; opacity:0.9; margin-top:0.3rem; }
-.nav { flex:1; padding:1rem 0; }
-.nav-item { padding:0.95rem 1.5rem; display:flex; align-items:center; gap:1rem; cursor:pointer; transition:all 0.2s; }
-.nav-item:hover { background:#374151; }
-.nav-item.active { background:var(--primary); font-weight:600; }
-.logout { border-top:1px solid #374151; }
-
-/* Page Visibility Logic */
-.page { display:none; }
-.page.active { display:block; animation: fadeIn 0.3s ease; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-/* Buttons */
-.btn { padding: 0.6rem 1.2rem; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 0.95rem; }
-.btn-primary { background: var(--primary); color: white; }
-.btn-primary:hover { background: var(--primary-hover); }
-.btn-danger { background: var(--danger); color: white; }
-.btn-danger:hover { background: #dc2626; }
-.btn-secondary { background: #e5e7eb; color: var(--text-dark); }
-.btn-secondary:hover { background: #d1d5db; }
-
-/* Data Tables */
-.data-table { width: 100%; border-collapse: collapse; }
-.data-table thead { background: #f9fafb; border-bottom: 2px solid #e5e7eb; }
-.data-table th { padding: 1rem; text-align: left; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-med); font-weight: 700; }
-.data-table td { padding: 1rem; border-bottom: 1px solid #e5e7eb; color: var(--text-dark); vertical-align: middle; }
-.data-table tr:last-child td { border-bottom: none; }
-.data-table tr:hover { background-color: #f9fafb; }
-.col-revenue { text-align: right; color: var(--primary); font-weight: 700; font-family: monospace; font-size: 1.1rem; }
-.col-actions { display: flex; gap: 0.5rem; justify-content: center; }
-
-/* Login/Modal/Toast */
-.login-container { position: fixed; inset: 0; background: linear-gradient(135deg, #0d9488, #0891b2); display: flex; align-items: center; justify-content: center; z-index: 2000; }
-.login-box { background: white; padding: 3rem; border-radius: 1rem; box-shadow: 0 20px 40px rgba(0,0,0,0.2); width: 100%; max-width: 400px; text-align: center; }
-.login-box h1 { margin-bottom: 2rem; color: #1f2937; font-size: 2.5rem; }
-.login-box input { width:100%; padding:0.85rem; margin:0.7rem 0; border-radius:0.5rem; border:1px solid #d1d5db; font-size:1rem; }
-.login-box button { width:100%; padding:0.85rem; background:var(--primary); color:white; border:none; border-radius:0.5rem; font-weight:bold; cursor:pointer; margin-top:0.5rem; }
-.demo-text { margin-top: 1.5rem; color: #666; font-size: 0.9rem; }
-.modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); align-items:center; justify-content:center; z-index:3000; backdrop-filter: blur(2px); }
-
-/* WIDER MODAL FIX */
-.modal-content {
-    background: white;
-    padding: 2.5rem;
-    border-radius: 1rem;
-    width: 90%;
-    max-width: 600px;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-}
-
-.modal-content h2 { margin-bottom:1.5rem; text-align:center; color:#1f2937; }
-.modal-content input { width:100%; padding:0.85rem; margin:0.7rem 0; border-radius:0.5rem; border:1px solid #d1d5db; }
-.modal-buttons { display:flex; gap:1rem; margin-top:1.5rem; }
-.modal-buttons button { flex:1; padding:0.85rem; border:none; border-radius:0.5rem; font-weight:bold; cursor:pointer; }
-.modal-buttons button:first-child { background:var(--primary); color:white; }
-.modal-buttons .cancel { background:#6b7280; color:white; }
-#toast { position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:var(--text-dark); color:white; padding:12px 24px; border-radius:50px; font-weight:600; opacity:0; visibility:hidden; transition:all 0.3s; z-index:10000; }
-#toast.toast-visible { opacity:1; visibility:visible; transform:translateX(-50%) translateY(-10px); }
-
-/* --- LOADER --- */
-#appLoading { position:fixed; inset:0; background:#f9fafb; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:1rem; font-size:1.2rem; color:#666; z-index:9999; }
-#appLoading div { width:50px; height:50px; border:5px solid #e5e7eb; border-top:5px solid #0d9488; border-radius:50%; animation:spin 1s linear infinite; }
-
-/* --- MAP STYLES --- */
-#map {
-    height: 600px;
-    width: 100%;
-    border-radius: 12px;
-    z-index: 1;
-}
-
-/* --- DASHBOARD KPIS (The Clean Cards) --- */
-.kpi-scorecard-dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
-.kpi-dashboard-item { background: white; padding: 1.5rem; border-radius: 12px; border: 1px solid #e5e7eb; border-left: 5px solid var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-.kpi-dashboard-item p { margin: 0; font-size: 0.75rem; color: var(--text-med); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
-.kpi-dashboard-item h3 { margin: 0.5rem 0 0; font-size: 1.8rem; font-weight: 800; color: var(--text-dark); }
-
-/* --- DASHBOARD SPLIT LAYOUT (NEW) --- */
-.dashboard-split-container {
-    display: grid;
-    grid-template-columns: 2fr 1fr; /* Map gets 2 parts, List gets 1 part */
-    gap: 20px;
-    height: 600px; /* Fixed height for layout */
-    align-items: stretch;
-}
-
-/* Map Container */
-.dashboard-map {
-    width: 100%;
-    height: 100%;
-    border-radius: 12px;
-    z-index: 1;
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-    border: 1px solid #e5e7eb;
-}
-
-/* Active Account List Panel */
-.dashboard-list-panel {
-    background: white;
-    border-radius: 12px;
-    border: 1px solid #e5e7eb;
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-    padding: 1.5rem;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-
-.dash-list-scroll {
-    flex: 1;
-    overflow-y: auto;
-    padding-right: 5px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-top: 10px;
-}
-
-.dash-list-scroll::-webkit-scrollbar { width: 6px; }
-.dash-list-scroll::-webkit-scrollbar-track { background: #f1f1f1; }
-.dash-list-scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
-
-/* Account Cards in List */
-.dash-account-card {
-    background: #f9fafb;
-    border-left: 4px solid #3b82f6;
-    padding: 12px;
+.btn-view-toggle {
+    background: transparent;
+    border: none;
+    padding: 6px 16px;
     border-radius: 6px;
-    border: 1px solid #e5e7eb;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #6b7280;
+    cursor: pointer;
     transition: all 0.2s;
 }
 
-.dash-account-card:hover {
-    background: #eff6ff;
-    transform: translateX(2px);
-}
+.btn-view-toggle:hover { color: #1f2937; background: #e5e7eb; }
+.btn-view-toggle.active { background: white; color: var(--primary); box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
 
-.dash-acc-name { font-weight: 700; color: #1f2937; font-size: 0.95rem; margin-bottom: 4px; }
-.dash-acc-addr { font-size: 0.8rem; color: #6b7280; line-height: 1.3; }
-.dash-acc-rev { font-size: 0.85rem; font-weight: 700; color: #0d9488; margin-top: 4px; text-align: right; }
-
-/* --- P&L MODULE --- */
-.pnl-controls { display: flex; justify-content: flex-end; align-items: center; gap: 1rem; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid #eee; }
-.switch { position: relative; display: inline-block; width: 50px; height: 28px; }
-.switch input { opacity: 0; width: 0; height: 0; }
-.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
-.slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
-input:checked + .slider { background-color: var(--primary); }
-input:checked + .slider:before { transform: translateX(22px); }
-
-.kpi-scorecard { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
-.kpi-item { background: #f9fafb; padding: 1.5rem; border-radius: 12px; border-left: 5px solid var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-.kpi-item p { margin: 0; font-size: 0.85rem; color: var(--text-med); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-.kpi-item h3 { margin: 0.5rem 0 0; font-size: 1.8rem; font-weight: 700; color: var(--text-dark); }
-.kpi-item h3.good { color: #16a34a; }
-.kpi-item h3.bad { color: #dc2626; }
-
-.pnl-item-wrapper { display: flex; align-items: center; margin: 10px 0; border-radius: 10px; background: #f9fafb; border: 1px solid #e5e7eb; transition: background 0.2s; }
-.pnl-item-wrapper:hover { background: #f3f4f6; }
-.pnl-account-checkbox { margin-left: 1.5rem; width: 1.2rem; height: 1.2rem; cursor: pointer; accent-color: var(--primary); }
-.accordion { background:none; border:none; padding:1.2rem 1.5rem; width:100%; text-align:left; font-size:1.1rem; font-weight: 600; color: var(--text-dark); cursor:pointer; display:flex; justify-content:space-between; align-items: center; }
-.accordion::after { content: '+'; font-size: 1.5rem; color: var(--primary); font-weight: 300; }
-.accordion.active::after { content: '−'; }
-.panel { padding:0 2rem; background:white; max-height:0; overflow:hidden; transition:max-height 0.4s ease; border-left: 1px solid #e5e7eb; border-right: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; border-radius: 0 0 10px 10px; margin-bottom: 1rem; width: 98%; margin-left: auto; margin-right: auto; }
-
-.pnl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; padding: 1.5rem 0; border-bottom: 1px dashed #e5e7eb; }
-.pnl-grid:last-child { border-bottom: none; }
-.pnl-box { background: #fcfcfc; padding: 1rem; border-radius: 8px; }
-.pnl-box h4 { margin: 0 0 1rem 0; color: var(--text-dark); font-size: 1rem; border-bottom: 2px solid var(--primary); padding-bottom: 5px; display: inline-block; }
-.pnl-row { display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0; border-bottom: 1px solid #f3f4f6; }
-.pnl-row:last-child { border-bottom: none; }
-.label { font-size: 0.95rem; color: var(--text-med); font-weight: 500; }
-.value { font-weight: 700; color: var(--text-dark); font-family: monospace; font-size: 1rem; }
-.pnl-row input { border: none; border-bottom: 1px dashed #ccc; text-align: right; font-size: 1rem; font-family: monospace; font-weight: 700; color: var(--text-dark); width: 100px; background: transparent; outline: none; transition: border 0.2s; }
-.pnl-row input:focus { border-bottom: 2px solid var(--primary); background: #f0fdfa; }
-
-.chart-container { background: #f9fafb; padding: 1.5rem; border-radius: 12px; border: 1px solid #e5e7eb; }
-.chart-container h4 { margin-top: 0; font-size: 1rem; color: var(--text-med); margin-bottom: 1rem; }
-.revenue-chart { height: 30px; border-radius: 6px; overflow: hidden; display: flex; margin-bottom: 1rem; }
-.chart-segment { height: 100%; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.75rem; font-weight: 700; text-shadow: 0 1px 2px rgba(0,0,0,0.2); transition: width 0.5s ease; }
-.chart-segment:hover { opacity: 0.8; }
-.chart-legend { display: flex; flex-wrap: wrap; gap: 1rem; }
-.legend-item { display: flex; align-items: center; font-size: 0.85rem; color: var(--text-med); }
-.legend-color { width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; }
-.grand-total { background: #f0fdfa; border: 1px solid #ccfbf1; padding: 2rem; border-radius: 12px; margin-top: 3rem; }
-.grand-total h3 { color: var(--primary); margin-bottom: 1.5rem; font-size: 1.5rem; }
-.grand-row { display:flex; justify-content:space-between; padding:0.5rem 0; font-size:1.1rem; color: var(--text-dark); }
-.grand-profit { font-size:1.5rem !important; font-weight:800; color: #059669 !important; margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed #99f6e4; }
-
-/* --- CALCULATOR SPECIFICS --- */
-.calc-inputs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
-.input-wrapper label { display: block; font-size: 0.85rem; font-weight: 700; color: var(--text-med); margin-bottom: 0.5rem; text-transform: uppercase; }
-.calc-cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; }
-.result-card { background: white; border-radius: 12px; padding: 2rem; position: relative; border: 1px solid #e5e7eb; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); transition: transform 0.2s; border-top: 5px solid #ccc; }
-.result-card:hover { transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
-.result-card.green { border-top-color: #10b981; }
-.result-card.blue { border-top-color: #3b82f6; }
-.result-card.purple { border-top-color: #8b5cf6; }
-.card-amount { font-size: 2.5rem; font-weight: 800; color: var(--text-dark); margin: 1rem 0 0.5rem; text-align: center; }
-.card-subtext { text-align: center; color: var(--text-med); font-size: 0.9rem; margin-bottom: 1.5rem; }
-.card-badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #8b5cf6; color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
-.detail-row { display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem; color: var(--text-med); }
-.detail-row.total { font-weight: 700; color: var(--text-dark); margin-top: 1rem; padding-top: 0.5rem; border-top: 1px dashed #e5e7eb; }
-
-/* --- PROFILE --- */
-.profile-view { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
-.profile-view h3 { font-size: 1.2rem; color: var(--text-dark); border-bottom: 1px solid #eee; padding-bottom: 0.5rem; margin: 0; }
-.profile-view p { margin-bottom: 0.5rem; color: var(--text-med); font-size: 0.9rem; }
-
-/* --- SPECS & FILE MANAGER --- */
-.specs-container { display: flex; flex-direction: column; gap: 1.5rem; }
-.specs-list-area { border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb; max-height: 250px; overflow-y: auto; }
-.spec-item { display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-bottom: 1px solid #e5e7eb; background: white; transition: background 0.2s; }
-.spec-item:hover { background: #f8fafc; }
-.spec-item:last-child { border-bottom: none; }
-.spec-info { display: flex; align-items: center; gap: 0.8rem; }
-.spec-icon { background: #fee2e2; color: #dc2626; width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
-.spec-name { font-weight: 700; color: #374151; font-size: 0.95rem; }
-.spec-meta { font-size: 0.8rem; color: #6b7280; margin-top: 2px; }
-.spec-actions { display: flex; gap: 10px; align-items: center; }
-.btn-view-doc { background: #0d9488; color: white; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; text-decoration: none; font-weight: 600; }
-.btn-view-doc:hover { background: #0f766e; }
-.btn-delete-doc { color: #ef4444; cursor: pointer; font-size: 1.2rem; line-height: 1; }
-.btn-delete-doc:hover { color: #dc2626; }
-.specs-upload-box { border: 2px dashed #cbd5e1; border-radius: 8px; padding: 2rem; text-align: center; background: #fff; transition: 0.2s; }
-.specs-upload-box:hover { border-color: var(--primary); background: #f0fdfa; }
-.specs-upload-box h4 { margin-top: 0; color: var(--text-dark); margin-bottom: 1rem; }
-.specs-upload-box input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 10px; }
-.specs-upload-box input[type="file"] { display: block; width: 100%; margin-bottom: 10px; font-size: 0.9rem; color: #666; }
-.empty-specs { padding: 3rem; text-align: center; color: #9ca3af; font-size: 0.95rem; font-style: italic; }
-
-/* --- TABLE ACTION BUTTONS (Mini Pills) --- */
-.action-buttons { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; }
-.btn-xs {
-    display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px;
-    font-size: 0.75rem; border-radius: 20px; border: 1px solid transparent;
-    font-weight: 600; cursor: pointer; transition: all 0.2s; text-decoration: none; line-height: 1;
-}
-.btn-xs:hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-
-.btn-specs-add { background: white; border-color: #3b82f6; color: #3b82f6; }
-.btn-specs-add:hover { background: #eff6ff; color: #2563eb; }
-
-.btn-specs-view { background: white; border-color: #0d9488; color: #0d9488; }
-.btn-specs-view:hover { background: #f0fdfa; color: #0f766e; }
-
-.btn-edit { background: white; border-color: #9ca3af; color: #4b5563; }
-.btn-edit:hover { background: #f3f4f6; color: #1f2937; }
-
-.btn-delete { background: white; border-color: #fca5a5; color: #ef4444; }
-.btn-delete:hover { background: #fef2f2; color: #dc2626; }
-
-/* --- METRICS PAGE STYLES --- */
-.metrics-layout {
-    display: grid;
-    grid-template-columns: 350px 1fr;
-    gap: 2rem;
-    height: 100%;
-}
-
-.metrics-input-section {
-    background: #f9fafb;
-    padding: 1.5rem;
-    border-radius: 8px;
+/* Main Container */
+.scheduler-container {
     border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: white;
+    height: 700px; /* Fixed height for scrolling */
+    overflow-y: auto; /* Scroll vertical */
+    overflow-x: auto; /* Scroll horizontal if needed */
+    position: relative;
     display: flex;
     flex-direction: column;
 }
 
-.metrics-textarea {
+/* Ensure the inner grid wrapper fills height for Month View calculations */
+#schedulerGrid {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* --- WEEK & DAY VIEW (Vertical Time Slots) --- */
+.calendar-view {
+    display: flex;
+    min-width: 100%;
+    position: relative; /* REQUIRED for the row highlight overlay */
+    flex: 1; /* Allow to fill space */
+}
+
+/* Time Gutter (Left Column) */
+.calendar-time-col {
+    width: 70px;
+    flex-shrink: 0;
+    border-right: 1px solid #e5e7eb;
+    background: #f9fafb;
+    position: sticky;
+    left: 0;
+    z-index: 20;
+}
+
+.time-slot {
+    height: 60px; /* 1 Hour = 60px */
+    border-top: 1px solid #f3f4f6;
+    font-size: 0.75rem;
+    color: #9ca3af;
+    text-align: center;
+    padding-top: 5px;
+    cursor: default; /* Keep cursor standard */
+}
+
+/* Day Columns */
+.calendar-day-col {
     flex: 1;
-    width: 100%;
-    padding: 1rem;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    font-family: monospace;
-    font-size: 0.85rem;
-    resize: none;
-    min-height: 400px;
-}
-
-.metrics-label {
-    font-weight: 700;
-    color: var(--text-dark);
-    margin-bottom: 0.5rem;
-    display: block;
-}
-
-.metrics-chart-section {
+    min-width: 120px; /* Prevent squishing on mobile */
+    border-right: 1px solid #f3f4f6;
+    position: relative;
     background: white;
-    border-radius: 8px;
-    padding: 1rem;
-    border: 1px solid #e5e7eb;
+}
+
+.calendar-day-col:last-child { border-right: none; }
+
+.cal-header {
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 500px;
-}
-
-@media (max-width: 900px) {
-    .metrics-layout { grid-template-columns: 1fr; }
-    .metrics-textarea { min-height: 200px; }
-    .metrics-chart-section { min-height: 300px; }
-}
-
-/* --- AD GENERATOR UI --- */
-.ad-layout-stack { display: flex; flex-direction: column; gap: 2rem; }
-.marketing-controls { display: flex; gap: 1.5rem; align-items: center; background: #fff1f2; padding: 1rem; border-radius: 8px; border: 1px solid #fecdd3; grid-column: 1 / -1; margin-bottom: 1rem; }
-.toggle-label { display: flex; align-items: center; gap: 0.5rem; font-weight: 700; font-size: 0.9rem; cursor: pointer; color: #9f1239; }
-.ad-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem 2rem; }
-.ad-input-group { display: flex; flex-direction: column; gap: 0.5rem; }
-.ad-input-group label, .ad-input-group .form-label {
+    font-weight: 700;
     font-size: 0.9rem;
-    font-weight: 700;
     color: var(--text-dark);
-    display: block;
-    margin-bottom: 0.5rem;
-}
-.ad-input-group input, .ad-input-group select, .ad-input-group textarea { padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-family: inherit; font-size: 0.95rem; resize: vertical; transition: border 0.2s; }
-.ad-input-group input:focus, .ad-input-group textarea:focus, .ad-input-group select:focus { border-color: var(--primary); outline: none; background: #f0fdfa; }
-.ad-input-group textarea { min-height: 80px; }
-.ad-section-title { grid-column: 1 / -1; font-size: 0.95rem; font-weight: 700; color: var(--primary); border-bottom: 2px solid #e5e7eb; padding-bottom: 0.5rem; margin-top: 1rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px; }
-.day-selector { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-.day-btn { background: #e5e7eb; border: none; padding: 0.6rem 0.9rem; border-radius: 6px; font-size: 0.85rem; font-weight: 600; color: #4b5563; cursor: pointer; transition: 0.2s; }
-.day-btn:hover { background: #d1d5db; }
-.day-btn.selected { background: var(--primary); color: white; }
-.chip-container { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
-.chip { padding: 6px 14px; background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 20px; font-size: 0.85rem; color: #4b5563; cursor: pointer; transition: all 0.2s; user-select: none; display: flex; align-items: center; gap: 6px; font-weight: 500; }
-.chip:hover { background: #e5e7eb; transform: translateY(-1px); }
-.chip.selected { background: #ccfbf1; border-color: var(--primary); color: #0f766e; font-weight: 700; }
-.chip.selected::before { content: '✓'; }
-.ad-actions-row { display: flex; gap: 1rem; justify-content: flex-start; margin-top: 1rem; flex-wrap: wrap; }
-.btn-ad-action { background: #0284c7; color: white; padding: 12px 24px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-.btn-ad-action:hover { background: #0369a1; transform: translateY(-1px); }
-.ad-output-area { width: 100%; min-height: 400px; padding: 1.5rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: 'Segoe UI', sans-serif; font-size: 1rem; line-height: 1.6; color: #1e293b; background: #fff; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); white-space: pre-wrap; resize: vertical; }
-
-/* --- HIDDEN FLYER FOR PDF --- */
-#hidden-flyer { position: absolute; left: -9999px; top: 0; width: 800px; background: white; z-index: -1; }
-
-/* --- FLYER STYLES (Print Optimized 1-Page) --- */
-.flyer-container {
-    padding: 20px; font-family: 'Segoe UI', Tahoma, sans-serif; background: white; color: #000;
-    box-sizing: border-box; height: 100%;
-}
-.flyer-header {
-    text-align: center; border-bottom: 3px solid #000; padding-bottom: 8px; margin-bottom: 15px;
-}
-.flyer-header h1 {
-    font-size: 28px; font-weight: 900; text-transform: uppercase; margin: 0; color: #000; letter-spacing: 1px;
-}
-.flyer-header .flyer-sub {
-    font-size: 14px; font-weight: 600; margin-top: 3px; color: #333; text-transform: uppercase;
-}
-.flyer-intro {
-    font-size: 12px; line-height: 1.3; text-align: center; margin-bottom: 15px; max-width: 90%;
-    margin-left: auto; margin-right: auto; font-style: italic; color: #222;
-}
-.flyer-grid {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;
-}
-.flyer-box {
-    border: 1px solid #ccc; padding: 8px; border-radius: 4px; text-align: left;
-}
-.flyer-label {
-    display: block; font-size: 9px; font-weight: 700; text-transform: uppercase; color: #555; margin-bottom: 2px;
-}
-.flyer-value {
-    font-size: 14px; font-weight: 700; color: #000; line-height: 1.1;
-}
-.flyer-value.pay { color: #0d9488; }
-.flyer-content-grid {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 10px;
-}
-.flyer-column { display: flex; flex-direction: column; gap: 10px; }
-.flyer-section { margin-bottom: 5px; }
-.flyer-section h3 {
-    font-size: 13px; font-weight: 800; text-transform: uppercase; border-bottom: 2px solid #0d9488;
-    padding-bottom: 2px; margin-bottom: 5px; color: #0d9488;
-}
-.flyer-list { list-style: none; padding: 0; margin: 0; }
-.flyer-list li {
-    font-size: 11px; padding: 2px 0; border-bottom: 1px dotted #ccc; line-height: 1.2; color: #111;
-}
-.flyer-list li:last-child { border-bottom: none; }
-.flyer-apply-section { margin-top: 15px; padding: 0; width: 100%; }
-.flyer-apply-section h3 { border-bottom: 2px solid #000; color: #000; }
-.flyer-apply-text { font-size: 14px; font-weight: 700; color: #000; margin-top: 5px; }
-
-/* Print Overrides */
-@media print {
-  /* Hide standard UI but DO NOT hide everything universally */
-  .sidebar, .nav, .pnl-controls, .no-print, .ad-actions-row, .marketing-controls, .ad-form-grid, .card-header, #toast, .modal, .add-btn, .pnl-btn { display: none !important; }
+    border-bottom: 1px solid #e5e7eb;
+    background: #fff;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
-/* --- NEW ALERT SETTINGS THEME (Blue/Neutral) --- */
-
-.alert-info-block {
-    background: #eff6ff !important; /* Light Blue */
-    border: 1px solid #bfdbfe !important; /* Blue Border */
-    color: #1e40af !important; /* Base Blue Text */
+.day-slots {
+    position: relative;
+    height: 1800px; /* 30 hours * 60px/hr */
+    background-image: linear-gradient(to bottom, #f3f4f6 1px, transparent 1px);
+    background-size: 100% 60px;
 }
 
-.alert-info-label {
-    font-weight: 700;
-    color: #1e40af !important; /* Darker Blue for Header Label */
+/* --- INTERACTIVE GRID HIGHLIGHTS --- */
+
+/* 1. Time Slot Row Highlight (Now fully controlled by JS) */
+.time-slot.active-time {
+    background-color: #0d9488; /* Teal primary color */
+    color: white;
+    font-weight: bold;
+    border-top-color: #0f766e;
+    transition: background-color 0.05s ease-out;
 }
 
-.alert-info-text {
-    color: #1e40af !important;
+/* We still need the overlay for the row highlight in the grid area */
+.calendar-view::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 70px; /* Start after the .calendar-time-col width */
+    right: 0;
+    width: auto;
+    height: 60px; /* Height of one hour slot */
+    background-color: transparent; /* Default state */
+    pointer-events: none; /* Allows clicks to pass through */
+    z-index: 50; /* Above the grid, below the events/shifts */
+    transition: transform 0.15s ease-out, background-color 0.15s ease-out;
 }
 
-.alert-info-input {
-    border: 1px solid #bfdbfe !important;
-    color: #1e40af;
-    background: white;
+.calendar-time-col .time-slot.active-time ~ .calendar-view::before {
+    background-color: rgba(13, 148, 136, 0.08); /* Light primary color highlight */
 }
 
-/* --- FIX FOR MODAL INPUTS (Full Width Selects & Layout) --- */
+/* Define the highlight transformation for each hour (0 to 29) */
+.calendar-time-col .time-slot[data-hour-index="0"].active-time ~ .calendar-view::before { transform: translateY(40px); }
+.calendar-time-col .time-slot[data-hour-index="1"].active-time ~ .calendar-view::before { transform: translateY(100px); }
+.calendar-time-col .time-slot[data-hour-index="2"].active-time ~ .calendar-view::before { transform: translateY(160px); }
+.calendar-time-col .time-slot[data-hour-index="3"].active-time ~ .calendar-view::before { transform: translateY(220px); }
+.calendar-time-col .time-slot[data-hour-index="4"].active-time ~ .calendar-view::before { transform: translateY(280px); }
+.calendar-time-col .time-slot[data-hour-index="5"].active-time ~ .calendar-view::before { transform: translateY(340px); }
+.calendar-time-col .time-slot[data-hour-index="6"].active-time ~ .calendar-view::before { transform: translateY(400px); }
+.calendar-time-col .time-slot[data-hour-index="7"].active-time ~ .calendar-view::before { transform: translateY(460px); }
+.calendar-time-col .time-slot[data-hour-index="8"].active-time ~ .calendar-view::before { transform: translateY(520px); }
+.calendar-time-col .time-slot[data-hour-index="9"].active-time ~ .calendar-view::before { transform: translateY(580px); }
+.calendar-time-col .time-slot[data-hour-index="10"].active-time ~ .calendar-view::before { transform: translateY(640px); }
+.calendar-time-col .time-slot[data-hour-index="11"].active-time ~ .calendar-view::before { transform: translateY(700px); }
+.calendar-time-col .time-slot[data-hour-index="12"].active-time ~ .calendar-view::before { transform: translateY(760px); }
+.calendar-time-col .time-slot[data-hour-index="13"].active-time ~ .calendar-view::before { transform: translateY(820px); }
+.calendar-time-col .time-slot[data-hour-index="14"].active-time ~ .calendar-view::before { transform: translateY(880px); }
+.calendar-time-col .time-slot[data-hour-index="15"].active-time ~ .calendar-view::before { transform: translateY(940px); }
+.calendar-time-col .time-slot[data-hour-index="16"].active-time ~ .calendar-view::before { transform: translateY(1000px); }
+.calendar-time-col .time-slot[data-hour-index="17"].active-time ~ .calendar-view::before { transform: translateY(1060px); }
+.calendar-time-col .time-slot[data-hour-index="18"].active-time ~ .calendar-view::before { transform: translateY(1120px); }
+.calendar-time-col .time-slot[data-hour-index="19"].active-time ~ .calendar-view::before { transform: translateY(1180px); }
+.calendar-time-col .time-slot[data-hour-index="20"].active-time ~ .calendar-view::before { transform: translateY(1240px); }
+.calendar-time-col .time-slot[data-hour-index="21"].active-time ~ .calendar-view::before { transform: translateY(1300px); }
+.calendar-time-col .time-slot[data-hour-index="22"].active-time ~ .calendar-view::before { transform: translateY(1360px); }
+.calendar-time-col .time-slot[data-hour-index="23"].active-time ~ .calendar-view::before { transform: translateY(1420px); }
+.calendar-time-col .time-slot[data-hour-index="24"].active-time ~ .calendar-view::before { transform: translateY(1480px); }
+.calendar-time-col .time-slot[data-hour-index="25"].active-time ~ .calendar-view::before { transform: translateY(1540px); }
+.calendar-time-col .time-slot[data-hour-index="26"].active-time ~ .calendar-view::before { transform: translateY(1600px); }
+.calendar-time-col .time-slot[data-hour-index="27"].active-time ~ .calendar-view::before { transform: translateY(1660px); }
+.calendar-time-col .time-slot[data-hour-index="28"].active-time ~ .calendar-view::before { transform: translateY(1720px); }
+.calendar-time-col .time-slot[data-hour-index="29"].active-time ~ .calendar-view::before { transform: translateY(1780px); }
 
-.split-inputs-container {
+/* 2. Column Hover Highlight */
+.day-slots::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-image: repeating-linear-gradient(to bottom, transparent 0px, transparent 59px, rgba(0, 0, 0, 0.05) 59px, rgba(0, 0, 0, 0.05) 60px);
+    background-size: 100% 60px;
+    pointer-events: none;
+    transition: background-color 0.1s ease;
+}
+
+.calendar-day-col:hover .day-slots { cursor: pointer; background-color: rgba(13, 148, 136, 0.02); }
+.calendar-day-col:hover .day-slots::after {
+    background-image: repeating-linear-gradient(to bottom, rgba(13, 148, 136, 0.05) 0px, rgba(13, 148, 136, 0.05) 59px, rgba(0, 0, 0, 0.08) 59px, rgba(0, 0, 0, 0.08) 60px);
+    pointer-events: auto;
+}
+.calendar-time-col:hover { cursor: default; }
+
+
+/* --- EVENTS (SHIFTS) --- */
+.day-event {
+    position: absolute;
+    width: 94%;
+    left: 3%;
+    background: #e0f2fe; /* Default Light Blue */
+    border-left: 4px solid #3b82f6;
+    border-radius: 4px;
+    padding: 2px 4px;
+    font-size: 0.75rem;
+    overflow: hidden;
+    cursor: grab; /* Set initial grab cursor */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+
+    transition: transform 0.2s ease, z-index 0.1s ease, box-shadow 0.2s ease;
+    z-index: 1; /* Base z-index */
+
+    /* --- CRITICAL: Prevent text highlight during drag --- */
+    user-select: none;
+    -moz-user-select: none;
+    -webkit-user-select: none;
+}
+
+/* Cursor change when active (dragging) */
+.day-event:active { cursor: grabbing !important; }
+
+/* DRAG & DROP STYLES */
+.resize-handle {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 10px;
+    cursor: ns-resize; /* North-South resize cursor */
+    z-index: 500;
+}
+
+.day-event:hover .resize-handle {
+    background: rgba(0,0,0,0.05);
+    border-bottom: 2px solid rgba(0,0,0,0.2);
+}
+
+.day-event.dragging {
+    opacity: 0.8;
+    z-index: 1000 !important;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+    cursor: grabbing;
+    transition: none; /* Disable transition for smooth following */
+}
+
+/* --- FIX: HOVER EFFECT --- */
+/* Expanded width for better readability, but NO height shrinking! */
+.day-event:not(:has(.resize-handle:hover)):hover {
+    transform: scale(1.05);
+    z-index: 1000 !important;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    width: 180px !important;
+    min-height: 60px !important;
+    white-space: normal;
+}
+
+/* --- FIX: STABILITY WHEN RESIZING --- */
+/* If hovering the resize handle, DO NOT transform or change dimensions */
+.day-event:has(.resize-handle:hover) {
+    z-index: 500 !important; /* Keep above neighbors */
+    transform: none !important;
+    width: 94% !important; /* Keep original width */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+}
+
+.event-time { font-weight: 700; color: #1e40af; font-size: 0.7rem; margin-bottom: 2px; }
+.event-title { font-weight: 600; color: #1e3a8a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.event-meta { color: #6b7280; font-size: 0.7rem; margin-top: 2px; }
+
+/* --- UPDATED STATUS COLORS --- */
+.day-event.scheduled .event-time { color: #1e40af; }
+
+/* STARTED -> GREY */
+.day-event.active {
+    background: #f3f4f6; /* Light Grey */
+    border-left-color: #9ca3af; /* Darker Grey Border */
+    color: #4b5563; /* Dark Grey Text */
+}
+.day-event.active .event-time { color: #374151; }
+
+.day-event.late { background: #fee2e2; border-left-color: #ef4444; }
+.day-event.late .event-time { color: #991b1b; }
+.day-event.done { background: #dcfce7; border-left-color: #10b981; opacity: 1; }
+.day-event.done .event-time { color: #065f46; }
+
+/* --- TODAY COLUMN HIGHLIGHT (WEEK/DAY VIEW) --- */
+.calendar-day-col.today-active {
+    background-color: #f0fdfa !important;
+    border-left: 1px solid #ccfbf1;
+    border-right: 1px solid #ccfbf1;
+}
+.calendar-day-col.today-active .cal-header {
+    background-color: #ccfbf1;
+    color: #0f766e;
+    border-bottom: 2px solid #0d9488;
+    font-weight: 800;
+}
+
+/* --- MONTH VIEW TODAY HIGHLIGHT --- */
+.month-day.today-active {
+    background-color: #f0fdfa !important;
+    box-shadow: inset 0 0 0 2px #0d9488;
+    z-index: 5;
+}
+.month-day.today-active .month-date-num {
+    color: #0d9488;
+    font-weight: 900;
+    font-size: 1.1rem;
+    text-decoration: underline;
+}
+
+/* --- MONTH VIEW (Classic Grid) --- */
+.calendar-month-view {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
-    margin-bottom: 10px;
-    align-items: start; /* Ensures containers align at the top */
+    grid-template-rows: auto 1fr; /* Default for desktop */
 }
 
-.input-wrapper {
-    width: 100%;
+.month-header {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
 }
 
-/* 🟢 PIXEL-PERFECT ALIGNMENT FIX */
-/* NOTE: We specifically exclude checkboxes so they don't turn into giant empty boxes */
-.input-wrapper input:not([type="checkbox"]),
-.input-wrapper select,
-.input-wrapper textarea {
-    display: block; /* Ensures they don't behave like inline text */
-    width: 100%;
-    height: 45px !important; /* Force exact same height */
-    min-height: 45px; /* Prevent browser shrinking */
-    margin: 0; /* Remove default browser margins */
-    padding: 0 12px; /* Consistent padding */
-    box-sizing: border-box; /* Include padding/border in height calc */
-
-    border: 2px solid #e5e7eb;
-    border-radius: 8px;
-    font-size: 1rem;
-    font-family: inherit;
-    line-height: normal; /* Normalizes text vertical alignment */
-    background-color: white;
-    transition: border 0.2s;
-
-    /* Fix for iOS/Safari rounded corners */
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
+.month-day-label {
+    padding: 10px;
+    text-align: center;
+    font-weight: 700;
+    color: #6b7280;
+    font-size: 0.85rem;
 }
 
-/* Re-add the arrow for Select dropdowns since we removed 'appearance' */
-.input-wrapper select {
-    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%236b7280%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
-    background-repeat: no-repeat;
-    background-position: right 12px center;
-    background-size: 12px;
-    padding-right: 30px; /* Make space for the arrow */
+.calendar-month-view {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    grid-auto-rows: minmax(100px, 1fr);
+    background: #e5e7eb;
+    gap: 1px;
 }
 
-/* Specific adjustment for Date inputs to ensure text centers vertically */
-.input-wrapper input[type="date"] {
+.calendar-month-view.wrapper {
+    display: block;
+}
+
+.month-day {
+    background: white;
+    padding: 8px;
+    min-height: 100px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.month-day.other-month { background: #f9fafb; color: #ccc; }
+
+.month-date-num {
+    font-weight: 700;
+    font-size: 0.9rem;
+    margin-bottom: 4px;
+    color: var(--text-dark);
+}
+
+/* Month View Events - Colors Updated */
+.month-event {
+    background: #eff6ff;
+    color: #1e40af;
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-left: 3px solid #3b82f6;
+}
+
+.month-event.active { background: #f3f4f6; color: #4b5563; border-left-color: #9ca3af; } /* Grey for Started */
+.month-event.done { background: #dcfce7; color: #065f46; border-left-color: #10b981; text-decoration: none; } /* Green for Completed */
+.month-event.late { background: #fee2e2; color: #991b1b; border-left-color: #ef4444; } /* Red for Late */
+
+
+.month-add-btn {
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: white;
+    border: 1px solid #e5e7eb;
+    color: var(--primary);
+    font-weight: bold;
+    cursor: pointer;
     display: flex;
     align-items: center;
-    justify-content: center; /* Packs text and icon in the center */
-    text-align: center;
+    justify-content: center;
+    opacity: 0;
+    transition: 0.2s;
 }
 
-/* Override default browser behavior that pushes the icon to the far right */
-.input-wrapper input[type="date"]::-webkit-calendar-picker-indicator {
-    margin-left: 8px; /* Small fixed gap between date and icon */
+.month-day:hover .month-add-btn { opacity: 1; }
+.month-add-btn:hover { background: var(--primary); color: white; }
+
+/* --- RECURRENCE SELECTOR STYLES --- */
+.day-btn-circle { width: 32px; height: 32px; border-radius: 50%; border: 1px solid #d1d5db; background: white; color: #6b7280; font-weight: 700; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
+.day-btn-circle:hover { background: #f3f4f6; border-color: #9ca3af; }
+.day-btn-circle.selected { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 2px 4px rgba(13, 148, 136, 0.3); }
+
+
+/* --- NEW: COLOR PALETTE STYLES (For Modal Dropdown) --- */
+
+/* The Floating Popover Container */
+.color-dropdown-popover {
+    position: absolute;
+    top: 100%; /* Position below the button */
+    left: 0;
+    width: 280px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 1000;
+    display: none;
+    margin-top: 5px;
+}
+
+.color-dropdown-popover.active {
+    display: block;
+}
+
+/* The Grid inside the dropdown */
+#colorPaletteGrid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr); /* 5 columns = 4 rows for 20 colors */
+    gap: 8px;
+    padding: 15px; /* Add padding here, removed from dropdown container */
+}
+
+/* Individual Color Dots in the Grid */
+.color-dot {
+    width: 35px; /* Larger size for easy clicking */
+    height: 35px;
+    border-radius: 50%;
+    border: 2px solid transparent;
     cursor: pointer;
+    transition: transform 0.1s;
+    flex-shrink: 0;
 }
 
-.input-wrapper select:focus,
-.input-wrapper input:focus,
-.input-wrapper textarea:focus {
-    border-color: var(--primary);
-    outline: none;
-    background: #f0fdfa;
+.color-dot:hover {
+    transform: scale(1.15);
+    box-shadow: 0 0 0 2px rgba(0,0,0,0.2);
 }
+
+.color-dot.selected {
+    transform: scale(1.15);
+    border-color: #374151; /* Dark border to show active selection */
+    box-shadow: 0 0 5px rgba(0,0,0,0.3);
+}
+
 
 /* --- REPEAT BUTTON STYLE --- */
-.hidden-checkbox {
-    display: none;
-}
+.hidden-checkbox { display: none; }
 
 .btn-repeat-toggle {
     display: block;
@@ -572,9 +470,8 @@ input:checked + .slider:before { transform: translateX(22px); }
     border-radius: 8px;
     font-weight: 700;
     color: #4b5563;
-    cursor: pointer;
-    transition: all 0.2s;
     user-select: none;
+    transition: all 0.2s;
 }
 
 .btn-repeat-toggle:hover {
@@ -582,7 +479,6 @@ input:checked + .slider:before { transform: translateX(22px); }
     border-color: #9ca3af;
 }
 
-/* Style when checked */
 #shiftRepeat:checked + .btn-repeat-toggle {
     background: #f0fdfa;
     border-color: var(--primary);
@@ -590,542 +486,148 @@ input:checked + .slider:before { transform: translateX(22px); }
     border-style: solid;
 }
 
-/* Mobile Response */
+/* --- MOBILE SCHEDULER ADJUSTMENTS --- */
 @media (max-width: 768px) {
-    /* 1. MOBILE NAVIGATION & LAYOUT */
+    .calendar-time-col { width: 50px; }
+    .calendar-day-col { min-width: 150px; }
+    .event-meta { display: none; }
+    .view-toggles { width: 100%; justify-content: center; }
 
-    /* Transform Sidebar into Top Nav */
-    .sidebar {
-        width: 100%;
-        height: auto;
-        flex-direction: row;
-        overflow-x: auto; /* Allows horizontal scrolling of nav items */
-        overflow-y: hidden;
-        justify-content: flex-start; /* Start items from the left */
-        padding: 0; /* Remove vertical padding */
-        border-bottom: 1px solid #374151;
-        position: fixed; /* Fix to the top */
-        top: 0;
-        left: 0; /* Ensure it spans the whole width */
-        z-index: 50;
-        white-space: nowrap; /* Prevent nav items from wrapping */
+    /* --- MOBILE MONTH VIEW FIXES --- */
+
+    /* 1. Force 7 Columns BUT expanded width to show 5 initially */
+    .calendar-month-view,
+    .month-header {
+        display: grid !important;
+        grid-template-columns: repeat(7, 1fr) !important;
+        width: 140% !important;
+        min-width: 140% !important;
     }
 
-    .sidebar-header {
-        display: none; /* Hide the title and user info on small screens */
+    /* 2. FORCE EQUAL ROW HEIGHTS (1fr) & FILL CONTAINER */
+    .calendar-month-view {
+        height: 100% !important; /* Fill the scheduler container */
+        grid-auto-rows: 1fr !important; /* Distribute height equally */
+        grid-template-rows: none !important; /* Reset default */
     }
 
-    #adminControls {
-        display: none !important; /* Hide admin controls on mobile nav */
+    /* 2. Header Adjustments */
+    .month-header div {
+        font-size: 0.7rem;
+        padding: 5px 0;
+        text-align: center;
+        overflow: hidden;
     }
 
-    .nav {
-        flex: none; /* Allow nav container to shrink/scroll */
-        padding: 0;
-        display: flex; /* Display items horizontally */
-    }
-
-    .nav-item {
-        padding: 0.8rem 1rem; /* Adjust padding for horizontal tabs */
-        flex-shrink: 0; /* Important: prevents items from shrinking */
-    }
-
-    .logout {
-        border-top: none;
-        margin-left: auto; /* Push logout to the far right */
-        border-left: 1px solid #374151; /* Add separator */
-    }
-
-    .main-content {
-        padding: 1rem;
-        margin-top: 55px; /* Add margin to account for the fixed top nav height */
-        height: calc(100vh - 55px);
-        overflow-y: auto;
-    }
-
-    .app-container {
-        flex-direction: column;
-        height: 100vh;
-    }
-    .login-box { padding: 1.5rem; }
-
-    /* 2. DASHBOARD KPI LAYOUT (Fixes the issue from the image) */
-    .kpi-scorecard-dashboard {
-        grid-template-columns: 1fr 1fr 1fr; /* Force 3 columns on mobile */
-        gap: 10px; /* Reduce gap */
-        overflow-x: auto;
-        white-space: nowrap;
-    }
-
-    .kpi-dashboard-item {
-        flex-shrink: 0;
-        width: 150px; /* Give a fixed width so they line up horizontally */
-        display: inline-block; /* Use inline-block for horizontal alignment in the grid container */
-    }
-
-
-    /* Dashboard Split */
-    .dashboard-split-container {
-        grid-template-columns: 1fr;
-        height: auto;
-    }
-    .dashboard-map { height: 400px; }
-    .dashboard-list-panel { height: 400px; }
-
-    /* Tables */
-    .data-table, .detail-table { font-size: 0.85rem; }
-    .data-table th, .data-table td { padding: 0.75rem 0.5rem; }
-    .col-revenue { font-size: 1rem; }
-
-    /* P&L */
-    .pnl-grid { grid-template-columns: 1fr; }
-    .kpi-scorecard { grid-template-columns: 1fr; }
-    .pnl-item-wrapper { margin: 5px 0; }
-
-    /* Ad Generator */
-    .ad-form-grid { grid-template-columns: 1fr; }
-    .ad-actions-row { flex-direction: column; }
-}
-
-/* --- MOBILE DASHBOARD FIXES --- */
-@media (max-width: 768px) {
-
-    /* 1. Stack the KPI Cards vertically instead of 3 columns */
-    .kpi-scorecard-dashboard {
-        grid-template-columns: 1fr;
-        gap: 12px;
-    }
-
-    /* 2. Arrange Label and Value side-by-side (Row) instead of stacked (Column) */
-    /* This prevents the dashboard from becoming too tall on mobile */
-    .kpi-dashboard-item {
-        display: flex;
-        align-items: center;
-        justify-content: space-between; /* Pushes label left, value right */
-        text-align: left;
-        padding: 15px 20px; /* Comfortable touch target */
-        min-height: auto;
-    }
-
-    /* 3. Adjust Typography for Mobile Context */
-    .kpi-dashboard-item p {
-        margin-bottom: 0; /* Remove bottom margin since it's now side-by-side */
-        font-size: 0.95rem;
-        color: #4b5563;
-        font-weight: 600;
-    }
-
-    .kpi-dashboard-item h3 {
-        font-size: 1.25rem;
-        margin: 0; /* Remove default margins */
-    }
-
-    /* Optional: Fix the Map/List split on mobile too if that is also crowded */
-    .dashboard-split-container {
-        grid-template-columns: 1fr; /* Stack map on top of list */
-        height: auto;
-    }
-
-    .dashboard-map {
-        height: 300px; /* Fixed height for map on mobile */
-    }
-}
-
-/* --- MOBILE DASHBOARD FIXES --- */
-@media (max-width: 768px) {
-
-    /* 1. Stack the KPI boxes vertically so they take full width */
-    .kpi-scorecard-dashboard {
+    /* 3. Larger Blocks - Let them fill the 1fr space */
+    .month-day {
+        min-height: 0 !important; /* Allow shrinking if needed */
+        height: 100% !important;  /* Fill the grid cell */
+        padding: 2px !important;
+        position: relative;
         display: flex;
         flex-direction: column;
-        gap: 10px; /* Space between the bubbles */
-    }
-
-    /* 2. Style the individual bubbles */
-    .kpi-dashboard-item {
-        width: 100%; /* Go the whole way across */
-        box-sizing: border-box; /* Ensures padding doesn't break width */
-
-        /* Layout: Label on Left, Value on Right */
-        display: flex;
-        justify-content: space-between;
+        justify-content: flex-start;
         align-items: center;
-        text-align: left;
-        padding: 15px 20px;
+        overflow: hidden;
     }
 
-    /* 3. Clean up the text inside so it fits perfectly */
-    .kpi-dashboard-item p {
-        margin: 0;
+    .month-label {
+        font-size: 0.75rem;
+        margin-bottom: 0;
+        align-self: flex-start;
+        padding-left: 2px;
+    }
+
+    .month-date-num {
         font-size: 0.9rem;
-        color: #4b5563;
-        flex: 1; /* Allow text to take available space */
+        margin-bottom: 4px;
     }
 
-    .kpi-dashboard-item h3 {
-        margin: 0;
-        font-size: 1.3rem;
-        padding-left: 15px; /* Space between text and number */
-        white-space: nowrap; /* Keep number on one line */
-    }
-}
-
-/* --- MOBILE ACCOUNTS TABLE FIX --- */
-@media (max-width: 768px) {
-    /* 1. Make the container scrollable horizontally */
-    #accountsList,
-    #inactiveAccountsList {
-        display: block;
-        width: 100%;
-        overflow-x: auto; /* Enables horizontal scroll */
-        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iPhone */
-        margin-bottom: 20px;
-        border: 1px solid #e5e7eb; /* Optional: adds a border around the scroll area */
-        border-radius: 6px;
-    }
-
-    /* 2. Force the table to be wide enough to read */
-    /* This prevents the text from squishing into unreadable vertical columns */
-    .data-table {
-        min-width: 650px; /* Forces the scrollbar to appear */
-    }
-}
-
-/* --- MOBILE ACCOUNTS TABLE FIX --- */
-@media (max-width: 768px) {
-    /* 1. Make the container scrollable horizontally */
-    #accountsList,
-    #inactiveAccountsList {
-        display: block;
-        width: 100%;
-        overflow-x: auto; /* Enables horizontal scroll */
-        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iPhone */
-        margin-bottom: 20px;
-        border: 1px solid #e5e7eb; /* Optional: adds a border around the scroll area */
-        border-radius: 6px;
-    }
-
-    /* 2. Force the table to be wide enough to read */
-    /* This prevents the text from squishing into unreadable vertical columns */
-    .data-table {
-        min-width: 650px; /* Forces the scrollbar to appear */
-    }
-}
-
-/* --- MOBILE SCHEDULER & HEADER FIXES (NUCLEAR OPTION) --- */
-@media (max-width: 768px) {
-
-    /* 1. Force the Card Header to Stack Vertically */
-    /* This ensures the Title and Buttons are on separate lines */
-    #schedule .card-header {
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: stretch !important;
-        height: auto !important;
-        padding-bottom: 15px;
-        gap: 15px;
-    }
-
-    /* 2. Reset the Title Margins */
-    #schedule .card-header h2 {
-        margin: 0 !important;
-        text-align: center;
-        width: 100%;
-    }
-
-    /* 3. Fix the View Toggles (Day/Week) Container */
-    /* Remove any fixed widths and force it to fill the available space */
-    .view-toggles {
-        display: flex !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        background-color: #f3f4f6;
-        padding: 5px;
-        border-radius: 8px;
-        box-sizing: border-box; /* Prevents padding from causing overflow */
-    }
-
-    /* 4. Fix the Individual Buttons */
-    /* Force them to share the space equally (50% each) */
-    .btn-view-toggle {
-        flex: 1 !important;
-        width: 50% !important;
-        text-align: center;
-        padding: 12px 0 !important;
-        margin: 0 !important;
-        font-size: 0.95rem !important;
-        white-space: nowrap; /* Prevents text from wrapping weirdly */
-    }
-
-    /* 5. Fix the Date Controls Row (Arrows/Date/Today) below the header */
-    .scheduler-controls {
-        display: flex !important;
-        flex-direction: column !important;
-        gap: 15px !important;
-        width: 100% !important;
-    }
-
-    /* Target the inner groups (Left: Date controls, Right: Add Shift) */
-    .scheduler-controls > div {
-        display: flex !important;
-        width: 100% !important;
-        justify-content: space-between !important;
-        gap: 5px !important;
-        box-sizing: border-box;
-    }
-
-    /* Fix the Date Label text centering */
-    #schedulerDateLabel {
-        flex: 1 !important;
-        text-align: center !important;
-        white-space: nowrap;
-        font-size: 0.9rem !important;
+    /* 4. SHOW Events as SMALL BARS with TEXT */
+    .month-events {
         display: flex;
+        flex-direction: column; /* Stack vertically */
+        justify-content: flex-start;
+        align-items: stretch; /* Full width of container */
+        gap: 1px;
+        width: 100%;
+        overflow: hidden;
+        padding-top: 2px;
+        margin-bottom: 24px; /* Room for the + button */
+    }
+
+    .month-day .month-event {
+        display: block !important;
+        width: auto !important; /* Allow it to fill the width */
+        height: 14px; /* Fixed height for consistency */
+        min-height: 0 !important;
+        padding: 0 3px !important;
+        border-radius: 2px;
+        font-size: 0.65rem !important; /* Make text visible */
+        line-height: 14px;
+        text-align: left;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis; /* "First number of letters that will fit" */
+        border: none !important;
+        margin: 0 1px 1px 1px;
+        flex-shrink: 0;
+    }
+
+    /* --- MATCH DAY/WEEK PASTEL COLORS --- */
+
+    /* Scheduled (Default) - Light Blue */
+    .month-day .month-event {
+        background-color: #e0f2fe !important;
+        color: #1e40af !important;
+    }
+
+    /* Completed - Light Green */
+    .month-day .month-event.done {
+        background-color: #dcfce7 !important;
+        color: #065f46 !important;
+    }
+
+    /* Late - Light Red */
+    .month-day .month-event.late {
+        background-color: #fee2e2 !important;
+        color: #991b1b !important;
+    }
+
+    /* Started - Light Grey (Previously Yellow) */
+    .month-day .month-event.active {
+        background-color: #f3f4f6 !important;
+        color: #4b5563 !important;
+    }
+
+    /* 5. Hide the DESKTOP add button */
+    .month-day .month-add-btn {
+        display: none !important;
+    }
+
+    /* 6. The Mobile Detail Trigger (+) */
+    .mobile-detail-btn {
+        display: flex !important;
+        justify-content: center;
         align-items: center;
-        justify-content: center;
-    }
-
-    /* Make buttons touch-friendly but fit on screen */
-    .scheduler-controls .btn {
-        padding: 10px 12px !important;
-        font-size: 0.85rem !important;
-    }
-}
-
-/* --- FIX FOR MOBILE MODAL SCROLLING --- */
-@media (max-width: 768px) {
-    .modal {
-        align-items: flex-start; /* Aligns modal to top so it doesn't get cut off when scrolling */
-        padding-top: 20px;       /* Adds a little breathing room at the top */
-        overflow-y: auto;        /* Ensures the background can scroll if needed */
-    }
-
-    .modal-content {
-        max-height: 85vh;       /* Limits modal height to 85% of the screen */
-        overflow-y: auto;       /* Adds a scrollbar INSIDE the white box */
-        width: 95%;             /* Uses more width on small screens */
-        margin-bottom: 50px;    /* Ensures bottom buttons aren't covered by browser nav bars */
+        width: 100%;
+        height: 24px;
+        background: rgba(13, 148, 136, 0.1);
+        color: #0d9488;
+        font-weight: bold;
+        font-size: 1.3rem;
+        line-height: 1;
+        border-radius: 4px;
+        margin-top: auto;
+        cursor: pointer;
+        border: none;
+        position: absolute;
+        bottom: 0;
     }
 }
 
-/* Ensure Scheduler Header wraps on mobile so buttons stay visible */
-@media (max-width: 900px) {
-    #scheduler .card-header {
-        flex-wrap: wrap;
-        gap: 15px;
-        justify-content: center;
-        text-align: center;
-    }
-
-    #scheduler .card-header > div {
-        width: 100%; /* Force each section to take full width line */
-        justify-content: center;
-    }
-
-    #scheduler .view-toggles {
-        order: 2; /* Keep toggles in middle or top */
-        margin-bottom: 10px;
-    }
-}
-
-/* style.css (Prepend all previous content here...) */
-/* ... existing styles ... */
-
-/* --- EMPLOYEE PORTAL MOBILE STYLES (Added) --- */
-
-.portal-body {
-    background-color: #f3f4f6;
-}
-
-.portal-container {
-    max-width: 600px;
-    margin: 0 auto;
-    padding: 15px;
-}
-
-.portal-header {
-    display: flex; justify-content: space-between; align-items: center;
-    background: white; padding: 15px; border-radius: 12px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 20px;
-}
-
-.job-card {
-    background: white; border-radius: 12px; padding: 20px;
-    margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    border-left: 5px solid #ccc; position: relative;
-}
-.job-card.status-scheduled { border-left-color: #3b82f6; } /* Blue */
-.job-card.status-started { border-left-color: #eab308; }   /* Yellow */
-.job-card.status-completed { border-left-color: #10b981; } /* Green */
-
-.job-time { font-size: 1.2rem; font-weight: 800; color: #1f2937; }
-.job-location { font-size: 1.1rem; color: #4b5563; margin-top: 5px; }
-.job-address { font-size: 0.9rem; color: #6b7280; margin-bottom: 15px; display: block; text-decoration: none; }
-
-.btn-large {
-    width: 100%; padding: 15px; border-radius: 8px; font-size: 1.1rem; font-weight: bold; border: none; cursor: pointer;
-    display: flex; align-items: center; justify-content: center; gap: 10px;
-}
-.btn-clock-in { background: #2563eb; color: white; }
-.btn-clock-out { background: #ef4444; color: white; }
-
-/* Week Selector */
-.week-nav {
-    display: flex; justify-content: space-between; align-items: center;
-    background: white; padding: 10px; border-radius: 8px; margin-bottom: 15px;
-}
-
-/* Portal Login */
-#empLoginPage {
-    height: 100vh; display: flex; align-items: center; justify-content: center;
-    background: #f3f4f6; flex-direction: column;
-}
-.login-card {
-    background: white; padding: 30px; border-radius: 15px;
-    width: 90%; max-width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-}
-
-/* --- FINAL MOBILE SCROLL FIX --- */
-@media (max-width: 768px) {
-
-    /* 1. Unlock the Main App Wrapper */
-    .app-container, body, html {
-        height: auto !important;
-        min-height: 100% !important;
-        overflow: visible !important; /* Allow content to spill out */
-    }
-
-    /* 2. Main Content Area */
-    .main-content {
-        width: 100vw !important;
-        overflow-x: hidden; /* Prevent the whole page from sliding left/right */
-    }
-
-    /* 3. TARGET THE TEAM LIST CONTAINERS SPECIFICALLY */
-    /* This creates the "Scroll Window" for the tables */
-    #activeEmployeesList,
-    #waitingEmployeesList,
-    #inactiveEmployeesList,
-    #accountsList,       /* Also fix Accounts tab */
-    #payrollTableContainer, /* Also fix Payroll tab */
-    .scheduler-container {
-        display: block !important;
-        width: 100% !important; /* Fit the screen width... */
-        overflow-x: scroll !important; /* ...but scroll internally */
-        -webkit-overflow-scrolling: touch; /* Smooth iPhone scroll */
-        margin-bottom: 20px;
-        border: 1px solid #eee;
-        background: white;
-    }
-
-    /* 4. FORCE THE TABLES TO BE WIDE */
-    /* 'max-content' forces the table to extend past the screen edge */
-    table {
-        width: max-content !important;
-        min-width: 800px !important; /* Backup width */
-    }
-
-    /* 5. Fix Cells so they don't wrap text */
-    th, td {
-        white-space: nowrap !important; /* Force text to stay on one line */
-        padding: 10px 15px !important;  /* Add padding to make finger taps easier */
-    }
-}
-
-/* --- TEAM MANAGEMENT SPECIFIC FIX (MOBILE) --- */
-@media (max-width: 768px) {
-
-    /* 1. Reset the parent container padding so lists have room */
-    #employees > div {
-        padding: 0 !important;
-        width: 100vw !important;
-    }
-
-    /* 2. Target the specific Employee List Containers */
-    #activeEmployeesList,
-    #waitingEmployeesList,
-    #inactiveEmployeesList {
-        display: block !important;
-        width: 100vw !important;      /* Full screen width */
-        overflow-x: auto !important;  /* ENABLE SWIPE */
-        -webkit-overflow-scrolling: touch; /* Smooth scroll on iPhone */
-        margin-bottom: 30px;
-        background: white;
-    }
-
-    /* 3. Force the Tables inside to be HUGE */
-    /* We use a hard pixel value (1200px) to guarantee the phone MUST scroll */
-    #activeEmployeesList table,
-    #waitingEmployeesList table,
-    #inactiveEmployeesList table {
-        width: 1200px !important;
-        min-width: 1200px !important;
-        max-width: none !important;
-        table-layout: auto !important;
-    }
-
-    /* 4. Prevent text wrapping to keep columns wide and readable */
-    #employees td,
-    #employees th {
-        white-space: nowrap !important;
-        padding: 12px 15px !important;
-        font-size: 14px !important;
-    }
-
-    /* 5. Ensure the header text doesn't get hidden */
-    #employees h3 {
-        padding-left: 10px;
-        margin-top: 20px;
-    }
-}
-
-/* --- DAY SELECTOR (For Accounts & Ad Generator) --- */
-.day-selector {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 15px;
-    flex-wrap: wrap;
-}
-
-.day-chip {
-    padding: 8px 12px;
-    border: 1px solid #d1d5db;
-    border-radius: 20px;
-    background: white;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #6b7280;
-    cursor: pointer;
-    transition: all 0.2s;
-    user-select: none;
-}
-
-.day-chip:hover {
-    background: #f3f4f6;
-    border-color: #9ca3af;
-}
-
-.day-chip.selected {
-    background-color: var(--primary); /* Teal */
-    color: white;
-    border-color: var(--primary);
-}
-
-/* --- FIX: Horizontal Scroll for Team Lists on Mobile --- */
-#employeeListActive,
-#employeeListWaiting,
-#employeeListInactive {
-    display: block;              /* Ensures the container behaves like a block */
-    width: 100%;                 /* Forces full width */
-    overflow-x: auto;            /* Adds a scrollbar ONLY if content is too wide */
-    -webkit-overflow-scrolling: touch; /* Smooth scrolling for iPhones */
-    white-space: nowrap;         /* Prevents text from wrapping to the next line */
-    padding-bottom: 10px;        /* Adds space for the scrollbar */
-}
-
-/* FORCE the rows inside to be wider than a phone screen */
-#employeeListActive > div,
-#employeeListWaiting > div,
-#employeeListInactive > div {
-    min-width: 650px;  /* This forces the scrollbar to appear */
+/* Hide mobile button on desktop */
+.mobile-detail-btn {
+    display: none;
 }

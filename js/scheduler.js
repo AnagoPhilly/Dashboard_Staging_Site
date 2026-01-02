@@ -1,7 +1,7 @@
 // js/scheduler.js
 
 // --- 1. CONFIGURATION ---
-const START_HOUR = 12; // Start at 12 PM (Noon)
+const START_HOUR = 8; // Start at 4 PM (Afternoon)
 const HOURS_TO_RENDER = 30;
 const PIXELS_PER_HOUR = 60;
 const SNAP_MINUTES = 15;
@@ -9,7 +9,7 @@ const PIXELS_PER_MINUTE = PIXELS_PER_HOUR / 60;
 const SNAP_PIXELS = SNAP_MINUTES * PIXELS_PER_MINUTE;
 
 // --- 2. STATE ---
-let currentView = 'month'; // Default to Month View
+let currentView = window.innerWidth < 768 ? 'day' : 'month';
 let currentDate = new Date();
 let alertedJobs = new Set();
 const alertSound = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-software-interface-start-2574.mp3');
@@ -460,6 +460,7 @@ function renderDayColumn(dateObj, jobs, alertThreshold, emailDelay, emailEnabled
     const dayJobs = jobs.filter(j => isSameDay(j.start, dateObj));
     dayJobs.sort((a, b) => a.start - b.start);
 
+    // --- ALGORITHM TO STACK OVERLAPPING SHIFTS ---
     const columns = [];
     dayJobs.forEach(job => {
         let placed = false;
@@ -517,10 +518,13 @@ function renderDayColumn(dateObj, jobs, alertThreshold, emailDelay, emailEnabled
         const alarmHtml = alarmCode ? `<div class="event-meta" style="color:${extraStyle ? '#fff' : '#ef4444'}; font-weight:bold;">🚨 ${alarmCode}</div>` : '';
         const titleColor = extraStyle ? 'color: #fff;' : '';
 
+        // --- THE FIX IS HERE ---
+        // Added onclick="window.editJob..." to enable tap-to-edit
         html += `
         <div class="${statusClass}"
              style="top:${topPx}px; height:${heightPx}px; width:${colWidth}%; left:${leftPos}%; ${extraStyle}"
              data-id="${job.id}"
+             onclick="event.stopPropagation(); window.editJob({id:'${job.id}'})"
              title="${job.accountName} - ${job.employeeName}">
             <div class="event-time" style="${titleColor}">${formatTime(job.start)} - ${formatTime(job.end)}</div>
             <div class="event-title" style="${titleColor}">${job.accountName}</div>

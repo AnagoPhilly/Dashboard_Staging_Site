@@ -1,7 +1,6 @@
 // js/employee_portal.js
 
 // --- GLOBAL STATE ---
-// 1. FORCE DEFAULTS ON LOAD (Always start at Today / Day View)
 let currentView = 'day';
 let currentStartDate = new Date();
 let currentEmployeeId = null;
@@ -21,37 +20,57 @@ function normalizeDate(date, view) {
 }
 
 // Initial Normalization
-currentStartDate = normalizeDate(currentStartDate, currentView);
+// We don't overwrite global start date aggressively on load, just ensure time is stripped
+currentStartDate.setHours(0,0,0,0);
 
 // --- AUTH LISTENER ---
 auth.onAuthStateChanged(async user => {
     const appPage = document.getElementById('empApp');
+    const loadingScreen = document.getElementById('appLoading');
+    const loginPage = document.getElementById('loginPage');
 
     if (user) {
-        // If we already have the ID, just reload data.
-        // If not, fetch the employee profile first.
         if (!currentEmployeeId) {
-            const empSnap = await db.collection('employees').where('email', '==', user.email).limit(1).get();
+            try {
+                // STRATEGY: Try Lowercase first (New Standard)
+                const lowerEmail = user.email.toLowerCase();
+                let empSnap = await db.collection('employees').where('email', '==', lowerEmail).limit(1).get();
 
-            if (!empSnap.empty) {
-                const employee = empSnap.docs[0].data();
-                currentEmployeeId = empSnap.docs[0].id;
+                // FALLBACK: If not found, try the raw email (Handle legacy uppercase records)
+                if (empSnap.empty && user.email !== lowerEmail) {
+                    console.log("Portal: Lowercase lookup failed. Trying raw email for legacy record...");
+                    empSnap = await db.collection('employees').where('email', '==', user.email).limit(1).get();
+                }
 
-                const welcomeEl = document.getElementById('welcomeMsg');
-                if(welcomeEl) welcomeEl.textContent = `Hi, ${employee.name.split(' ')[0]}`;
+                if (!empSnap.empty) {
+                    // --- SUCCESS ---
+                    const employee = empSnap.docs[0].data();
+                    currentEmployeeId = empSnap.docs[0].id;
 
-                // Reveal App
-                if(appPage) appPage.style.display = 'block';
+                    const welcomeEl = document.getElementById('welcomeMsg');
+                    if(welcomeEl) welcomeEl.textContent = `Hi, ${employee.name.split(' ')[0]}`;
 
-                // Load Data
-                loadMyShifts(currentEmployeeId);
+                    // REVEAL UI
+                    if (loadingScreen) loadingScreen.style.display = 'none';
+                    if (loginPage) loginPage.style.display = 'none';
+                    if (appPage) appPage.style.display = 'block';
+
+                    loadMyShifts(currentEmployeeId);
+                } else {
+                    // --- FAIL: LOGIN VALID, BUT NO EMPLOYEE RECORD ---
+                    if (loadingScreen) loadingScreen.style.display = 'none';
+                    alert("Login successful, but no Employee Profile found for: " + user.email + "\n\nPlease contact your manager.");
+                }
+            } catch (err) {
+                console.error("Portal Load Error:", err);
+                if (loadingScreen) loadingScreen.style.display = 'none';
+                alert("Error loading profile: " + err.message);
             }
         }
     } else {
-        // --- LOGGED OUT / SESSION ENDED ---
-        if(appPage) appPage.style.display = 'none';
-
-        // SAFETY REDIRECT: Force navigation to login page
+        // --- LOGGED OUT ---
+        if (loadingScreen) loadingScreen.style.display = 'none';
+        if (appPage) appPage.style.display = 'none';
         window.location.replace('index.html');
     }
 });
@@ -59,40 +78,42 @@ auth.onAuthStateChanged(async user => {
 // --- DATA LOADING ---
 async function loadMyShifts(employeeId) {
     const loader = document.getElementById('gridLoader');
-    if(loader) loader.classList.add('active');
-
-    // GA4 Tracking
-    if (typeof window.gtag === 'function') {
-        window.gtag('event', 'page_view', {
-            'page_title': `Portal - ${currentView}`,
-            'page_path': `/portal/${currentView}`
-        });
-    }
-
     const container = document.getElementById('schedulerGrid');
     const hoursDisplay = document.getElementById('totalHoursDisplay');
     const dateEl = document.getElementById('weekRangeDisplay');
 
-    // Update Active Button UI
-    document.querySelectorAll('.btn-view-toggle').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.view === currentView);
-    });
+    if (loader) loader.classList.add('active');
 
-    // Update Header Date Text
-    if(dateEl) {
+    // 1. CALCULATE RENDER START DATE (Do not change global currentStartDate)
+    // This variable determines what the USER SEES, but doesn't overwrite where they ARE.
+    let renderStart = new Date(currentStartDate);
+    renderStart.setHours(0,0,0,0);
+
+    if (currentView === 'week') {
+        // Find the Monday of the current week for RENDERING ONLY
+        const day = renderStart.getDay();
+        const diff = renderStart.getDate() - day + (day === 0 ? -6 : 1);
+        renderStart.setDate(diff);
+    } else if (currentView === 'month') {
+        renderStart.setDate(1);
+    }
+
+    // 2. Update Header Text
+    if (dateEl) {
         if (currentView === 'month') {
-             dateEl.textContent = currentStartDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+             dateEl.textContent = renderStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
         } else if (currentView === 'day') {
-             // Show "Today, Dec 18" format
+             // Use currentStartDate (User's selected day) for Day View title
              dateEl.textContent = currentStartDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
         } else {
-             const weekEnd = new Date(currentStartDate);
-             weekEnd.setDate(currentStartDate.getDate() + 6);
-             dateEl.textContent = `${currentStartDate.toLocaleDateString()} - ${weekEnd.toLocaleDateString()}`;
+             const weekEnd = new Date(renderStart);
+             weekEnd.setDate(renderStart.getDate() + 6);
+             dateEl.textContent = `${renderStart.toLocaleDateString()} - ${weekEnd.toLocaleDateString()}`;
         }
     }
 
     try {
+        // 3. Fetch Jobs
         const allSnap = await db.collection('jobs').where('employeeId', '==', employeeId).get();
         const jobsForRender = [];
         let totalHours = 0;
@@ -100,27 +121,14 @@ async function loadMyShifts(employeeId) {
         allSnap.forEach(doc => {
             const j = doc.data();
             j.id = doc.id;
-            j.start = j.startTime.toDate();
-            j.end = j.endTime.toDate();
+            j.start = j.startTime ? j.startTime.toDate() : new Date();
+            j.end = j.endTime ? j.endTime.toDate() : new Date();
 
-            // Calculate Stats (Rough calc based on current view timeframe)
+            // Calculate Hours (Simple Stat)
             if (j.status === 'Completed' && j.actualStartTime && j.actualEndTime) {
                  const jobEnd = j.actualEndTime.toDate();
-                 let periodEnd = new Date(currentStartDate);
-
-                 // Determine end of current view period for stat calc
-                 if (currentView === 'day') {
-                     // For day view, period is just that day
-                     periodEnd = new Date(currentStartDate);
-                     periodEnd.setHours(23,59,59,999);
-                 } else if (currentView === 'week') {
-                     periodEnd.setDate(periodEnd.getDate() + 6);
-                 } else if (currentView === 'month') {
-                     periodEnd.setMonth(periodEnd.getMonth() + 1);
-                 }
-
-                 // Check overlap
-                 if (jobEnd >= normalizeDate(currentStartDate, currentView) && jobEnd <= periodEnd) {
+                 // Only count if it falls in the current month/period roughly (30 days)
+                 if (Math.abs(jobEnd - renderStart) < 2592000000) {
                     const diffMs = jobEnd - j.actualStartTime.toDate();
                     totalHours += diffMs / (1000 * 60 * 60);
                  }
@@ -128,37 +136,65 @@ async function loadMyShifts(employeeId) {
             jobsForRender.push(j);
         });
 
-        if(hoursDisplay) hoursDisplay.textContent = totalHours.toFixed(2);
-
-        // Update the "Next Shift" text in header
+        if (hoursDisplay) hoursDisplay.textContent = totalHours.toFixed(2);
         updateNextShiftDisplay(jobsForRender);
 
-        // Clear grid before rendering new view
-        container.innerHTML = '';
+        // 4. Render Grid using the Calculated "renderStart"
+        if (container) {
+            container.innerHTML = '';
 
-        if (currentView === 'month') renderMonthView(jobsForRender);
-        else if (currentView === 'day') renderDayView(jobsForRender);
-        else renderWeekView(jobsForRender);
+            // Update Active Buttons
+            document.querySelectorAll('.btn-view-toggle').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.view === currentView);
+            });
+
+            if (currentView === 'month') renderMonthView(jobsForRender); // Month view handles its own dates
+            else if (currentView === 'day') renderDayView(jobsForRender); // Day view uses currentStartDate directly
+            else renderWeekView(jobsForRender, renderStart); // Pass the calculated Monday
+        }
 
     } catch (e) {
         console.error(e);
-        container.innerHTML = '<p style="text-align:center; padding:1rem;">Error loading schedule.</p>';
+        if (container) container.innerHTML = '<p style="text-align:center;">Error loading schedule.</p>';
     } finally {
-        if(loader) loader.classList.remove('active');
+        if (loader) loader.classList.remove('active');
     }
 }
+
+// --- CONTROLS ---
+
+window.changeView = function(view, isButtonPress = false) {
+    currentView = view;
+
+    // We intentionally DO NOT reset currentStartDate here.
+    // This keeps the user on the date they were looking at.
+
+    sessionStorage.setItem('empPortalView', currentView);
+    sessionStorage.setItem('empPortalDate', currentStartDate.toISOString());
+
+    if (currentEmployeeId) loadMyShifts(currentEmployeeId);
+};
+
+window.changePeriod = function(direction) {
+    // We adjust the anchor date based on the view
+    if (currentView === 'day') {
+        currentStartDate.setDate(currentStartDate.getDate() + direction);
+    } else if (currentView === 'week') {
+        currentStartDate.setDate(currentStartDate.getDate() + (direction * 7));
+    } else if (currentView === 'month') {
+        currentStartDate.setMonth(currentStartDate.getMonth() + direction);
+    }
+
+    sessionStorage.setItem('empPortalDate', currentStartDate.toISOString());
+    if (currentEmployeeId) loadMyShifts(currentEmployeeId);
+};
 
 // --- HELPER: NEXT SHIFT DISPLAY ---
 function updateNextShiftDisplay(jobs) {
     const now = new Date();
-
-    // Find future shifts that are not completed
     const upcoming = jobs.filter(j => j.start > now && j.status !== 'Completed');
-
-    // Sort by start time (soonest first)
     upcoming.sort((a, b) => a.start - b.start);
 
-    // Get or Create the Display Element
     let nextShiftEl = document.getElementById('nextShiftDisplay');
     const headerContainer = document.getElementById('welcomeMsg')?.parentElement;
 
@@ -175,53 +211,31 @@ function updateNextShiftDisplay(jobs) {
 
     if (upcoming.length === 0) {
         nextShiftEl.textContent = "Next Shift: None Scheduled";
-        nextShiftEl.style.color = '#9ca3af'; // Gray
+        nextShiftEl.style.color = '#9ca3af';
         return;
     }
 
     const nextJob = upcoming[0];
-
-    // --- DATE COMPARISON LOGIC ---
-    // Reset hours to compare calendar days accurately
-    const todayReset = new Date(now);
-    todayReset.setHours(0,0,0,0);
-
-    const shiftReset = new Date(nextJob.start);
-    shiftReset.setHours(0,0,0,0);
-
-    // Calculate difference in days
-    const diffTime = shiftReset - todayReset;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const todayReset = new Date(now); todayReset.setHours(0,0,0,0);
+    const shiftReset = new Date(nextJob.start); shiftReset.setHours(0,0,0,0);
+    const diffDays = Math.ceil((shiftReset - todayReset) / (1000 * 60 * 60 * 24));
 
     let displayText = "";
-    let color = '#0d9488'; // Default Teal
+    let color = '#0d9488';
 
     if (diffDays === 0) {
-        // --- CASE 1: TODAY (Show Countdown) ---
         const diffMs = nextJob.start - now;
         const diffHrs = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
         const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-
-        // Helper for pluralization
-        const hrStr = diffHrs === 1 ? 'hour' : 'hours';
-        const minStr = diffMins === 1 ? 'minute' : 'minutes';
-
-        if (diffHrs > 0) {
-            displayText = `${diffHrs} ${hrStr} ${diffMins} ${minStr}`;
-        } else {
-            displayText = `${diffMins} ${minStr}`;
-            // If less than 1 hour away, make it Orange/Warning color
+        if (diffHrs > 0) displayText = `${diffHrs}h ${diffMins}m`;
+        else {
+            displayText = `${diffMins} mins`;
             color = '#eab308';
         }
     } else if (diffDays === 1) {
-        // --- CASE 2: TOMORROW ---
-        const timeStr = nextJob.start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-        displayText = `Tomorrow @ ${timeStr}`;
+        displayText = `Tomorrow @ ${nextJob.start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
     } else {
-        // --- CASE 3: FUTURE DATE ---
-        const dateStr = nextJob.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        const timeStr = nextJob.start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-        displayText = `${dateStr} @ ${timeStr}`;
+        displayText = `${nextJob.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} @ ${nextJob.start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
     }
 
     nextShiftEl.style.color = color;
@@ -253,6 +267,7 @@ function renderMonthView(jobs) {
     let iterator = new Date(firstDay);
     iterator.setDate(iterator.getDate() - iterator.getDay());
     const today = new Date();
+    const now = new Date(); // Capture Current Time
 
     for(let i=0; i<42; i++) {
         const dayDiv = document.createElement('div');
@@ -267,18 +282,22 @@ function renderMonthView(jobs) {
 
         dayJobs.forEach(job => {
             const timeStr = formatTimeShort(job.start);
+
+            // --- UPDATED LOGIC: CHECK FOR LATE ---
             let statusClass = 'scheduled';
             if (job.status === 'Completed') statusClass = 'completed';
             else if (job.status === 'Started') statusClass = 'started';
+            else if (now > job.start) statusClass = 'late'; // Applies Red LATE style
 
             const eventDiv = document.createElement('div');
             eventDiv.className = `month-event ${statusClass}`;
             eventDiv.textContent = `${timeStr} ${job.accountName}`;
 
+            // Clicking a specific shift goes to Day View for that day
             eventDiv.onclick = (e) => {
                 e.stopPropagation();
                 currentStartDate = new Date(job.start);
-                changeView('day', false);
+                window.changeView('day', false);
             };
             dayDiv.appendChild(eventDiv);
         });
@@ -286,7 +305,7 @@ function renderMonthView(jobs) {
         const targetDate = new Date(iterator);
         dayDiv.onclick = () => {
              currentStartDate = targetDate;
-             changeView('day', false);
+             window.changeView('day', false);
         };
 
         grid.appendChild(dayDiv);
@@ -294,7 +313,8 @@ function renderMonthView(jobs) {
     }
 }
 
-function renderWeekView(jobs) {
+// Renders Week view using the pre-calculated weekStart from loadMyShifts
+function renderWeekView(jobs, weekStart) {
     const grid = document.getElementById('schedulerGrid');
     if(!grid) return;
 
@@ -304,17 +324,23 @@ function renderWeekView(jobs) {
     grid.style.overflowY = 'auto';
 
     for (let i = 0; i < 7; i++) {
-        const colDate = new Date(currentStartDate);
-        colDate.setDate(currentStartDate.getDate() + i);
-        const dateString = colDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+        const colDate = new Date(weekStart);
+        colDate.setDate(weekStart.getDate() + i);
 
+        const dateString = colDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
         const dayJobs = jobs.filter(j => isSameDay(j.start, colDate));
         dayJobs.sort((a, b) => a.start - b.start);
 
         const dayContainer = document.createElement('div');
         dayContainer.style.borderBottom = '1px solid #eee';
         dayContainer.style.padding = '10px';
-        dayContainer.innerHTML = `<div style="font-weight:700; color:#4b5563; margin-bottom:5px;">${dateString}</div>`;
+
+        const isToday = isSameDay(colDate, new Date());
+        const dateColor = isToday ? '#0d9488' : '#4b5563';
+        const bg = isToday ? '#f0fdfa' : 'transparent';
+        dayContainer.style.backgroundColor = bg;
+
+        dayContainer.innerHTML = `<div style="font-weight:700; color:${dateColor}; margin-bottom:5px;">${dateString} ${isToday ? '(Today)' : ''}</div>`;
 
         if (dayJobs.length === 0) {
             dayContainer.innerHTML += `<div style="font-size:0.8rem; color:#9ca3af; padding-left:10px;">No shifts</div>`;
@@ -327,6 +353,7 @@ function renderWeekView(jobs) {
     }
 }
 
+// Renders Day view using the Global currentStartDate
 function renderDayView(jobs) {
     const grid = document.getElementById('schedulerGrid');
     if(!grid) return;
@@ -336,7 +363,6 @@ function renderDayView(jobs) {
     grid.style.padding = '15px';
 
     const colDate = currentStartDate;
-    // Pretty Date Header
     const dateString = colDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
     grid.innerHTML = `<h3 style="text-align:center; margin-bottom:20px; color:#1f2937;">${dateString}</h3>`;
@@ -345,7 +371,7 @@ function renderDayView(jobs) {
     dayJobs.sort((a, b) => a.start - b.start);
 
     if (dayJobs.length === 0) {
-        grid.innerHTML += '<div style="text-align:center; padding:2rem; color:#9ca3af;">No shifts scheduled for today.</div>';
+        grid.innerHTML += '<div style="text-align:center; padding:2rem; color:#9ca3af;">No shifts scheduled for this day.</div>';
     } else {
         dayJobs.forEach(job => {
             grid.appendChild(createDetailCard(job));
@@ -356,7 +382,12 @@ function renderDayView(jobs) {
 function createDetailCard(job) {
     const timeStr = formatTime(job.start) + ' - ' + formatTime(job.end);
     let actionBtn = '';
-    let statusColor = '#3b82f6';
+    let statusColor = '#3b82f6'; // Default Blue
+    let lateLabel = '';
+
+    // Check for Late Status
+    const now = new Date();
+    const isLate = (job.status === 'Scheduled' && now > job.start);
 
     if (job.status === 'Completed') {
         const actualEnd = job.actualEndTime ? formatTime(job.actualEndTime.toDate()) : 'Done';
@@ -366,6 +397,11 @@ function createDetailCard(job) {
         actionBtn = `<button class="btn-clockout" onclick="attemptClockOut('${job.id}', '${job.accountId}')">🛑 Clock Out</button>`;
         statusColor = '#eab308';
     } else {
+        // Scheduled
+        if (isLate) {
+            statusColor = '#ef4444'; // RED for Late
+            lateLabel = `<span style="color:#ef4444; font-weight:bold; margin-left:8px; font-size:0.9rem;">(LATE)</span>`;
+        }
         actionBtn = `<button class="btn-checkin" onclick="attemptCheckIn('${job.id}', '${job.accountId}')">📍 Clock In</button>`;
     }
 
@@ -382,7 +418,9 @@ function createDetailCard(job) {
     card.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:flex-start;">
             <div>
-                <div style="font-size:1.1rem; font-weight:800; color:#1f2937;">${timeStr}</div>
+                <div style="font-size:1.1rem; font-weight:800; color:#1f2937;">
+                    ${timeStr} ${lateLabel}
+                </div>
                 <div style="font-size:1rem; color:#4b5563; margin-top:2px;">${job.accountName}</div>
                 <a href="${mapLink}" target="_blank" style="font-size:0.85rem; color:#2563eb; text-decoration:none; display:block; margin-top:5px;">🗺️ Get Directions</a>
             </div>
@@ -398,35 +436,6 @@ function isSameDay(d1, d2) {
 }
 function formatTime(date) { return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); }
 function formatTimeShort(date) { return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).replace(' AM','').replace(' PM',''); }
-
-// --- CONTROLS ---
-window.changeView = function(view, isButtonPress = false) {
-    const prevView = currentView;
-    currentView = view;
-
-    // Auto-reset to Today if moving from Month to Day/Week (Better UX)
-    if (isButtonPress && prevView === 'month' && (view === 'week' || view === 'day')) {
-        const today = new Date();
-        // Only reset if we are in the current month
-        if (currentStartDate.getMonth() === today.getMonth() && currentStartDate.getFullYear() === today.getFullYear()) {
-            currentStartDate = today;
-        }
-    }
-
-    currentStartDate = normalizeDate(currentStartDate, currentView);
-    sessionStorage.setItem('empPortalView', currentView);
-    sessionStorage.setItem('empPortalDate', currentStartDate.toISOString());
-    if(currentEmployeeId) loadMyShifts(currentEmployeeId);
-};
-
-window.changePeriod = function(direction) {
-    if (currentView === 'day') currentStartDate.setDate(currentStartDate.getDate() + direction);
-    else if (currentView === 'week') currentStartDate.setDate(currentStartDate.getDate() + (direction * 7));
-    else if (currentView === 'month') currentStartDate.setMonth(currentStartDate.getMonth() + direction);
-
-    sessionStorage.setItem('empPortalDate', currentStartDate.toISOString());
-    if(currentEmployeeId) loadMyShifts(currentEmployeeId);
-};
 
 // --- GEOFENCE ACTIONS ---
 window.attemptCheckIn = function(jobId, accountId) {
@@ -501,3 +510,22 @@ function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 function deg2rad(deg) { return deg * (Math.PI/180); }
+
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        const loader = document.getElementById('appLoading');
+        const app = document.getElementById('empApp');
+        const login = document.getElementById('loginPage');
+
+        // Only run this check if we are on the Portal page
+        if (app) {
+            // If loader is still visible, kill it and show the app
+            if (loader && loader.style.display !== 'none') {
+                console.warn("CleanDash: Loader stuck? Forcing UI reveal...");
+                loader.style.display = 'none';
+                if (login) login.style.display = 'none';
+                app.style.display = 'block';
+            }
+        }
+    }, 2500);
+});
